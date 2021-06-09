@@ -2999,15 +2999,8 @@ class Gw1000Collector(Collector):
             # segment
             ttl = struct.pack('b', 1)
             socket_obj.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
-            # Create packet to broadcast. Format is:
-            #   fixed header, GW1000 Broadcast command, size, checksum
-            size = len(self.commands['CMD_BROADCAST']) + 1 + 1
-            # construct the portion of the message for which the checksum is calculated
-            body = b''.join([self.commands['CMD_BROADCAST'], struct.pack('B', size)])
-            # calculate the checksum
-            checksum = self.calc_checksum(body)
-            # construct the entire message packet
-            packet = b''.join([self.header, body, struct.pack('B', checksum)])
+            # construct the packet to broadcast
+            packet = self.build_cmd_packet('CMD_BROADCAST')
             if weewx.debug >= 3:
                 logdbg("Sending broadcast packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
                                                                      self.broadcast_address,
@@ -3311,19 +3304,6 @@ class Gw1000Collector(Collector):
             invalid an appropriate exception is raised and the command resent
             up to self.max_tries times after which the value None is returned.
 
-            A GW1000 API command looks like:
-
-            fixed header, command, size, data 1, data 2...data n, checksum
-
-            where:
-                fixed header is 2 bytes = 0xFFFF
-                command is a 1 byte API command code
-                size is 1 byte being the number of bytes of command to checksum
-                data 1, data 2 ... data n is the data being transmitted and is n
-                    bytes long
-                checksum is a byte checksum of command + size + data 1 +
-                    data 2 ... + data n
-
             cmd: A string containing a valid GW1000 API command,
                  eg: 'CMD_READ_FIRMWARE_VERSION'
             payload: The data to be sent with the API command, byte string.
@@ -3331,17 +3311,8 @@ class Gw1000Collector(Collector):
             Returns the response as a byte string or the value None.
             """
 
-            # calculate size
-            try:
-                size = len(self.commands[cmd]) + 1 + len(payload) + 1
-            except KeyError:
-                raise UnknownCommand("Unknown GW1000 API command '%s'" % (cmd,))
-            # construct the portion of the message for which the checksum is calculated
-            body = b''.join([self.commands[cmd], struct.pack('B', size), payload])
-            # calculate the checksum
-            checksum = self.calc_checksum(body)
-            # construct the entire message packet
-            packet = b''.join([self.header, body, struct.pack('B', checksum)])
+            # construct the message packet
+            packet = self.build_cmd_packet(cmd, payload)
             # attempt to send up to 'self.max_tries' times
             for attempt in range(self.max_tries):
                 response = None
@@ -3387,6 +3358,41 @@ class Gw1000Collector(Collector):
                 logerr(_msg)
             # finally raise a GW1000IOError exception
             raise GW1000IOError(_msg)
+
+        def build_cmd_packet(self, cmd, payload=b''):
+            """Construct an API command packet.
+
+            A GW1000 API command packet looks like:
+
+            fixed header, command, size, data 1, data 2...data n, checksum
+
+            where:
+                fixed header is 2 bytes = 0xFFFF
+                command is a 1 byte API command code
+                size is 1 byte being the number of bytes of command to checksum
+                data 1, data 2 ... data n is the data being transmitted and is n
+                    bytes long
+                checksum is a byte checksum of command + size + data 1 +
+                    data 2 ... + data n
+
+            cmd:     A string containing a valid GW1000 API command,
+                       eg: 'CMD_READ_FIRMWARE_VERSION'
+            payload: The data to be sent with the API command, byte string.
+
+            Returns an API command packet as a bytestring.
+            """
+
+            # calculate size
+            try:
+                size = len(self.commands[cmd]) + 1 + len(payload) + 1
+            except KeyError:
+                raise UnknownCommand("Unknown GW1000 API command '%s'" % (cmd,))
+            # construct the portion of the message for which the checksum is calculated
+            body = b''.join([self.commands[cmd], struct.pack('B', size), payload])
+            # calculate the checksum
+            checksum = self.calc_checksum(body)
+            # return the constructed message packet
+            return b''.join([self.header, body, struct.pack('B', checksum)])
 
         def send_cmd(self, packet):
             """Send a command to the GW1000 API and return the response.
