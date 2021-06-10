@@ -3496,7 +3496,7 @@ class Gw1000Collector(Collector):
 
             Use UDP broadcast to discover a GW1000 that may have changed to a
             new IP. We should not be re-discovering a GW1000 for which the user
-            specified and IP, only for those for which we discovered the IP
+            specified an IP, only for those for which we discovered the IP
             address on startup. If a GW1000 is discovered then change my
             ip_address and port properties as necessary to use the device in
             future. If the rediscover was successful return True otherwise
