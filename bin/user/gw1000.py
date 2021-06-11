@@ -2937,10 +2937,10 @@ class Gw1000Collector(Collector):
                         if len(ip_port_list) > 0:
                             # we have at least one, arbitrarily choose the first one
                             # found as the one to use
-                            disc_ip = ip_port_list[0][0]
-                            disc_port = ip_port_list[0][1]
+                            disc_ip = ip_port_list[0]['ip_address']
+                            disc_port = ip_port_list[0]['port']
                             # log the fact as well as what we found
-                            gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in ip_port_list])
+                            gw1000_str = ', '.join([':'.join(['%s:%d' % (d['ip_address'], d['port']) for d in ip_port_list])])
                             if len(ip_port_list) == 1:
                                 stem = "GW1000 was"
                             else:
@@ -3023,18 +3023,67 @@ class Gw1000Collector(Collector):
                     except socket.error:
                         # raise any other socket error
                         raise
-                    # obtain the IP address, it is in bytes 11 to 14 inclusive
-                    ip_address = '%d.%d.%d.%d' % struct.unpack('>BBBB', response[11:15])
-                    # obtain the port, it is in bytes 15 to 16 inclusive
-                    port = struct.unpack('>H', response[15: 17])[0]
-                    # if we haven't seen this ip address and port add them to
-                    # our results list
-                    if (ip_address, port) not in result_list:
-                        result_list.append((ip_address, port))
+
+                    else:
+                        # check the response is valid
+                        try:
+                            self.check_response(response, self.commands['CMD_BROADCAST'])
+                        except (InvalidChecksum, InvalidApiResponse) as e:
+                            # the response was not valid, log it and attempt again
+                            # if we haven't had too many attempts already
+                            logdbg("Invalid response to command '%s': %s" % ('CMD_BROADCAST', e))
+                        except Exception as e:
+                            # Some other error occurred in check_response(),
+                            # perhaps the response was malformed. Log the stack
+                            # trace but continue.
+                            logerr("Unexpected exception occurred while checking response "
+                                   "to command '%s': %s" % ('CMD_BROADCAST', e))
+                            log_traceback_error('    ****  ')
+                        else:
+                            # our response is valid so ?????
+                            print("response=%s" % (response,))
+                            print("Broadcast dict=%s" % (self.decode_broadcast_response(response), ))
+                            device = self.decode_broadcast_response(response)
+                        # # obtain the IP address, it is in bytes 11 to 14 inclusive
+                        # ip_address = '%d.%d.%d.%d' % struct.unpack('>BBBB', response[11:15])
+                        # # obtain the port, it is in bytes 15 to 16 inclusive
+                        # port = struct.unpack('>H', response[15: 17])[0]
+                            # if we haven't seen this ip address and port add them to
+                            # our results list
+                            if not any((d['ip_address'] == device['ip_address'] and d['port'] == device['port']) for d in result_list):
+                                result_list.append(device)
+
+                        # if (ip_address, port) not in result_list:
+                        #     result_list.append((ip_address, port))
             finally:
                 # we are done so close our socket
                 socket_obj.close()
             return result_list
+
+        def decode_broadcast_response(self, raw_data):
+            """Decode a broadcast reponse and return a dict of fileds."""
+
+            # obtain the response size, it's a big endian short (two byte) integer
+            resp_size = struct.unpack('>H', raw_data[3:5])[0]
+            # extract the actual data
+            data = raw_data[5:resp_size + 2]
+            # initialise a dict to hold our final data
+            data_dict = dict()
+            data_dict['mac'] = bytes_to_hex(data[0:6], separator=":")
+            data_dict['ip_address'] = '%d.%d.%d.%d' % struct.unpack('>BBBB', data[6:10])
+            data_dict['port'] = struct.unpack('>H', data[10: 12])[0]
+            # get the SSID as a bytestring
+            ssid_b = data[13:]
+            # create a format string so the SSID string can be unpacked into its
+            # bytes
+            ssid_format = "B" * len(ssid_b)
+            # unpack the SSID bytestring, we now have a tuple of integers
+            # representing each of the bytes
+            ssid_t = struct.unpack(ssid_format, ssid_b)
+            # convert the sequence of bytes to unicode characters and assemble
+            # as a string and return the result
+            data_dict['ssid'] = "".join([chr(x) for x in ssid_t])
+            return data_dict
 
         def get_livedata(self):
             """Get GW1000 live data.
@@ -5505,12 +5554,14 @@ class DirectGw1000(object):
             if len(ip_port_list) > 0:
                 # we have at least one result
                 # first sort our list by IP address
-                sorted_list = sorted(ip_port_list, key=itemgetter(0))
+            #    sorted_list = sorted(ip_port_list, key=itemgetter(0))
+                sorted_list = ip_port_list
                 found = False
                 gw1000_found = 0
-                for (ip, port) in sorted_list:
-                    if ip is not None and port is not None:
-                        print("GW1000 discovered at IP address %s on port %d" % (ip, port))
+                for device in sorted_list:
+                    if device['ip_address'] is not None and device['port'] is not None:
+                        print("GW1000 discovered at IP address %s on port %d" % (device['ip_address'],
+                                                                                 device['port']))
                         found = True
                         gw1000_found += 1
                 else:
@@ -5847,3 +5898,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
