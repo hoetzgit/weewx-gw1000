@@ -2940,7 +2940,7 @@ class Gw1000Collector(Collector):
                             disc_ip = ip_port_list[0]['ip_address']
                             disc_port = ip_port_list[0]['port']
                             # log the fact as well as what we found
-                            gw1000_str = ', '.join([':'.join(['%s:%d' % (d['ip_address'], d['port']) for d in ip_port_list])])
+                            gw1000_str = ', '.join([':'.join(['%s:%d' % (d['ip_address'], d['port'])]) for d in ip_port_list])
                             if len(ip_port_list) == 1:
                                 stem = "GW1000 was"
                             else:
@@ -5554,6 +5554,7 @@ class DirectGw1000(object):
             if len(ip_port_list) > 0:
                 # we have at least one result
                 # first sort our list by IP address
+                # TODO. Need to sort this list by ip_address
             #    sorted_list = sorted(ip_port_list, key=itemgetter(0))
                 sorted_list = ip_port_list
                 found = False
