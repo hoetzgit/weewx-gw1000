@@ -3023,7 +3023,6 @@ class Gw1000Collector(Collector):
                     except socket.error:
                         # raise any other socket error
                         raise
-
                     else:
                         # check the response is valid
                         try:
