@@ -3041,41 +3041,74 @@ class Gw1000Collector(Collector):
                             log_traceback_error('    ****  ')
                         else:
                             # our response is valid so ?????
-                            print("response=%s" % (response,))
-                            print("Broadcast dict=%s" % (self.decode_broadcast_response(response), ))
                             device = self.decode_broadcast_response(response)
-                        # # obtain the IP address, it is in bytes 11 to 14 inclusive
-                        # ip_address = '%d.%d.%d.%d' % struct.unpack('>BBBB', response[11:15])
-                        # # obtain the port, it is in bytes 15 to 16 inclusive
-                        # port = struct.unpack('>H', response[15: 17])[0]
                             # if we haven't seen this ip address and port add them to
                             # our results list
                             if not any((d['ip_address'] == device['ip_address'] and d['port'] == device['port']) for d in result_list):
                                 result_list.append(device)
-
-                        # if (ip_address, port) not in result_list:
-                        #     result_list.append((ip_address, port))
             finally:
                 # we are done so close our socket
                 socket_obj.close()
             return result_list
 
         def decode_broadcast_response(self, raw_data):
-            """Decode a broadcast reponse and return a dict of fileds."""
+            """Decode a broadcast response and return the results as a dict.
 
-            # obtain the response size, it's a big endian short (two byte) integer
+            A GW1000 response to a CMD_BROADCAST API command consists of a
+            number of control structures around a payload of a data. The API
+            response is structured as follows:
+
+            bytes 0-1 incl                  preamble, literal 0xFF 0xFF
+            byte 2                          literal value 0x12
+            bytes 3-4 incl                  payload size (big endian short integer)
+            bytes 5-5+payload size incl     data payload (details below)
+            byte 6+payload size             checksum
+
+            The data payload is structured as follows:
+
+            bytes 0-5 incl      GW1000 MAC address
+            bytes 6-9 incl      GW1000 IP address
+            bytes 10-11 incl    GW1000 port number
+            bytes 11-           GW1000 AP SSID
+
+            Note: The GW1000 AP SSID for a given GW1000 is fixed in size but
+            this size can vary from device to device and across firmware
+            versions.
+
+            There also seems to be a peculiarity in the CMD_BROADCAST response
+            data payload whereby the first character of the GW1000 AP SSID is a
+            non-printable ASCII character. The WS View app appears to ignore or
+            not display this character nor does it appear to be used elsewhere.
+            Consequently this characater is ignored.
+
+            raw_data:   a bytestring containing a validated (structure and
+                        checksum verified) raw data response to the
+                        CMD_BROADCAST API command
+
+            Returns a dict with decoded data keyed as follows:
+                'mac':          GW1000 MAC address (string)
+                'ip_address':   GW1000 IP address (string)
+                'port':         GW1000 port number (integer)
+                'ssid':         GW1000 AP SSID (string)
+            """
+
+            # obtain the response size, it's a big endian short (two byte)
+            # integer
             resp_size = struct.unpack('>H', raw_data[3:5])[0]
-            # extract the actual data
+            # now extract the actual data payload
             data = raw_data[5:resp_size + 2]
-            # initialise a dict to hold our final data
+            # initialise a dict to hold our result
             data_dict = dict()
+            # extract and decode the MAC address
             data_dict['mac'] = bytes_to_hex(data[0:6], separator=":")
+            # extract and decode the IP address
             data_dict['ip_address'] = '%d.%d.%d.%d' % struct.unpack('>BBBB', data[6:10])
+            # extract and decode the port number
             data_dict['port'] = struct.unpack('>H', data[10: 12])[0]
             # get the SSID as a bytestring
             ssid_b = data[13:]
             # create a format string so the SSID string can be unpacked into its
-            # bytes
+            # bytes, remember the length can vary
             ssid_format = "B" * len(ssid_b)
             # unpack the SSID bytestring, we now have a tuple of integers
             # representing each of the bytes
@@ -3083,6 +3116,7 @@ class Gw1000Collector(Collector):
             # convert the sequence of bytes to unicode characters and assemble
             # as a string and return the result
             data_dict['ssid'] = "".join([chr(x) for x in ssid_t])
+            # return the result dict
             return data_dict
 
         def get_livedata(self):
