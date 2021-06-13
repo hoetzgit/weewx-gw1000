@@ -3659,6 +3659,169 @@ class Gw1000Collector(Collector):
             # if we made it here re-discovery was unsuccessful so return False
             return False
 
+    class NewParser(object):
+        """Class to parse GW1000 API responses."""
+
+        def __init__(self, debug_rain=False, debug_wind=False):
+            # get debug_rain and debug_wind
+            self.debug_rain = debug_rain
+            self.debug_wind = debug_wind
+
+        def parse(self, cmd=None, raw_data=None):
+            """Parse the raw data received in response to an API command."""
+
+            try:
+                parse_fn = '_'.join(['parse', cmd])
+            except TypeError:
+                logdbg("Cannot parse API response: API command not "
+                       "specified or invalid API command '%s'" % cmd)
+                raise
+            try:
+                return getattr(self, parse_fn)(raw_data)
+            except AttributeError:
+                logdbg("Cannot parse API response: Unknown parse function '%s'" % parse_fn)
+                raise
+
+        @staticmethod
+        def parse_cmd_read_ecowitt(raw_data):
+            """Parse response to CMD_READ_ECOWITT API call."""
+
+            # determine the size of the data payload
+            raw_data_size = six.indexbytes(raw_data, 3)
+            # extract the data payload
+            data = raw_data[4:4 + raw_data_size - 3]
+            # initialise a dict to hold our results
+            data_dict = dict()
+            # obtain the Ecowitt.net upload interval in minutes
+            data_dict['interval'] = six.indexbytes(data, 0)
+            return data_dict
+
+        @staticmethod
+        def parse_cmd_read_wunderground(raw_data):
+            """Parse response to CMD_READ_WUNDERGROUND API call."""
+
+            # determine the size of the data payload
+            raw_data_size = six.indexbytes(raw_data, 3)
+            # extract the data payload
+            data = raw_data[4:4 + raw_data_size - 3]
+            # initialise a dict to hold our results
+            data_dict = dict()
+            # obtain the wunderground ID
+            id_size = six.indexbytes(data, 0)
+            data_dict['id'] = data[1:1 + id_size].decode()
+            # obtain the wunderground password
+            password_size = six.indexbytes(data, 1 + id_size)
+            data_dict['password'] = data[2 + id_size:2 + id_size + password_size].decode()
+            # API lists the last data byte as 'Fix', unsure what format it is
+            # or what it is used for other than it is a single byte. Decode as
+            # a single byte integer.
+            data_dict['fix'] = six.indexbytes(data, -1)
+            return data_dict
+
+        @staticmethod
+        def parse_cmd_read_wow(raw_data):
+            """Parse response to CMD_READ_WOW API call."""
+
+            # determine the size of the data payload
+            raw_data_size = six.indexbytes(raw_data, 3)
+            # extract the data payload
+            data = raw_data[4:4 + raw_data_size - 3]
+            # initialise a dict to hold our results
+            data_dict = dict()
+            # obtain the WOW ID
+            id_size = six.indexbytes(data, 0)
+            data_dict['id'] = data[1:1 + id_size].decode()
+            # obtain the WOW password
+            password_size = six.indexbytes(data, 1 + id_size)
+            data_dict['password'] = data[2 + id_size:2 + id_size + password_size].decode()
+            # obtain the WOW station number
+            station_num_size = six.indexbytes(data, 1 + id_size)
+            data_dict['station_num'] = data[3 + id_size + password_size:3 + id_size + password_size + station_num_size].decode()
+            # API lists the last data byte as 'Fix', unsure what format it is
+            # or what it is used for other than it is a single byte. Decode as
+            # a single byte integer.
+            data_dict['fix'] = six.indexbytes(data, -1)
+            return data_dict
+
+        @staticmethod
+        def parse_cmd_read_weathercloud(raw_data):
+            """Parse response to CMD_READ_WEATHERCLOUD API call."""
+
+            # determine the size of the data payload
+            raw_data_size = six.indexbytes(raw_data, 3)
+            # extract the data payload
+            data = raw_data[4:4 + raw_data_size - 3]
+            # initialise a dict to hold our results
+            data_dict = dict()
+            # obtain the WeatherCloud ID
+            id_size = six.indexbytes(data, 0)
+            data_dict['id'] = data[1:1 + id_size].decode()
+            # obtain the WeatherCloud key
+            key_size = six.indexbytes(data, 1 + id_size)
+            data_dict['key'] = data[2 + id_size:2 + id_size + key_size].decode()
+            # API lists the last data byte as 'Fix', unsure what format it is
+            # or what it is used for other than it is a single byte. Decode as
+            # a single byte integer.
+            data_dict['fix'] = six.indexbytes(data, -1)
+            return data_dict
+
+        @staticmethod
+        def parse_cmd_read_customized(raw_data):
+            """Parse response to CMD_READ_CUSTOMIZED API call."""
+
+            # determine the size of the data payload
+            raw_data_size = six.indexbytes(raw_data, 3)
+            # extract the data payload
+            data = raw_data[4:4 + raw_data_size - 3]
+            # initialise a dict to hold our results
+            data_dict = dict()
+            # obtain the WeatherCloud ID
+            index = 0
+            id_size = six.indexbytes(data, index)
+            index += 1
+            data_dict['id'] = data[index:index + id_size].decode()
+            # obtain the password
+            index += id_size
+            password_size = six.indexbytes(data, index)
+            index += 1
+            data_dict['password'] = data[index:index + password_size].decode()
+            # obtain the server
+            index += password_size
+            server_size = six.indexbytes(data, index)
+            index += 1
+            data_dict['server'] = data[index:index + server_size].decode()
+            # obtain the port
+            index += server_size
+            data_dict['port'] = struct.unpack(">h", data[index:index + 2])[0]
+            # obtain the interval in seconds (?)
+            index += 2
+            data_dict['interval'] = struct.unpack(">h", data[index:index + 2])[0]
+            # obtain the type (Ecowitt format (0) or WU format (1))
+            index += 2
+            data_dict['type'] = six.indexbytes(data, index)
+            # obtain whether upload is active or not (0=disabled, 1=enabled)
+            index += 1
+            data_dict['active'] = six.indexbytes(data, index)
+            return data_dict
+
+        @staticmethod
+        def parse_cmd_read_usrpath(raw_data):
+            """Parse response to CMD_READ_USRPATH API call."""
+
+            # determine the size of the data payload
+            raw_data_size = six.indexbytes(raw_data, 3)
+            # extract the data payload
+            data = raw_data[4:4 + raw_data_size - 3]
+            # initialise a dict to hold our results
+            data_dict = dict()
+            # obtain the Ecowitt path
+            ecowitt_size = six.indexbytes(data, 0)
+            data_dict['ecowitt_path'] = data[1:1 + ecowitt_size].decode()
+            # obtain the WU path
+            wu_size = six.indexbytes(data, 1 + ecowitt_size)
+            data_dict['wu_path'] = data[2 + ecowitt_size:2 + ecowitt_size + wu_size].decode()
+            return data_dict
+
     class Parser(object):
         """Class to parse GW1000 sensor data."""
 
