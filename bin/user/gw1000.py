@@ -3666,6 +3666,10 @@ class Gw1000Collector(Collector):
             # get debug_rain and debug_wind
             self.debug_rain = debug_rain
             self.debug_wind = debug_wind
+            # get a SensorState object to handle sensor ID data
+            self.sensors_obj = Gw1000Collector.NewParser.SensorId(show_battery=show_battery)
+            # get a SensorData object to handle sensor observation data
+            self.sensors_obj = Gw1000Collector.NewParser.SensorLiveData()
 
         def parse(self, cmd=None, raw_data=None):
             """Parse the raw data received in response to an API command."""
@@ -3683,27 +3687,30 @@ class Gw1000Collector(Collector):
                 raise
 
         @staticmethod
-        def parse_cmd_read_ecowitt(raw_data):
-            """Parse response to CMD_READ_ECOWITT API call."""
+        def get_payload(raw_data):
+            """Extract and return the data payload from a raw API response."""
 
             # determine the size of the data payload
             raw_data_size = six.indexbytes(raw_data, 3)
-            # extract the data payload
-            data = raw_data[4:4 + raw_data_size - 3]
+            # return the extracted data payload
+            return raw_data[4:4 + raw_data_size - 3]
+
+        def parse_cmd_read_ecowitt(self, raw_data):
+            """Parse response to CMD_READ_ECOWITT API call."""
+
+            # obtain the data payload
+            data = self.get_payload(raw_data)
             # initialise a dict to hold our results
             data_dict = dict()
             # obtain the Ecowitt.net upload interval in minutes
             data_dict['interval'] = six.indexbytes(data, 0)
             return data_dict
 
-        @staticmethod
-        def parse_cmd_read_wunderground(raw_data):
+        def parse_cmd_read_wunderground(self, raw_data):
             """Parse response to CMD_READ_WUNDERGROUND API call."""
 
-            # determine the size of the data payload
-            raw_data_size = six.indexbytes(raw_data, 3)
-            # extract the data payload
-            data = raw_data[4:4 + raw_data_size - 3]
+            # obtain the data payload
+            data = self.get_payload(raw_data)
             # initialise a dict to hold our results
             data_dict = dict()
             # obtain the wunderground ID
@@ -3718,14 +3725,11 @@ class Gw1000Collector(Collector):
             data_dict['fix'] = six.indexbytes(data, -1)
             return data_dict
 
-        @staticmethod
-        def parse_cmd_read_wow(raw_data):
+        def parse_cmd_read_wow(self, raw_data):
             """Parse response to CMD_READ_WOW API call."""
 
-            # determine the size of the data payload
-            raw_data_size = six.indexbytes(raw_data, 3)
-            # extract the data payload
-            data = raw_data[4:4 + raw_data_size - 3]
+            # obtain the data payload
+            data = self.get_payload(raw_data)
             # initialise a dict to hold our results
             data_dict = dict()
             # obtain the WOW ID
@@ -3743,14 +3747,11 @@ class Gw1000Collector(Collector):
             data_dict['fix'] = six.indexbytes(data, -1)
             return data_dict
 
-        @staticmethod
-        def parse_cmd_read_weathercloud(raw_data):
+        def parse_cmd_read_weathercloud(self, raw_data):
             """Parse response to CMD_READ_WEATHERCLOUD API call."""
 
-            # determine the size of the data payload
-            raw_data_size = six.indexbytes(raw_data, 3)
-            # extract the data payload
-            data = raw_data[4:4 + raw_data_size - 3]
+            # obtain the data payload
+            data = self.get_payload(raw_data)
             # initialise a dict to hold our results
             data_dict = dict()
             # obtain the WeatherCloud ID
@@ -3765,14 +3766,11 @@ class Gw1000Collector(Collector):
             data_dict['fix'] = six.indexbytes(data, -1)
             return data_dict
 
-        @staticmethod
-        def parse_cmd_read_customized(raw_data):
+        def parse_cmd_read_customized(self, raw_data):
             """Parse response to CMD_READ_CUSTOMIZED API call."""
 
-            # determine the size of the data payload
-            raw_data_size = six.indexbytes(raw_data, 3)
-            # extract the data payload
-            data = raw_data[4:4 + raw_data_size - 3]
+            # obtain the data payload
+            data = self.get_payload(raw_data)
             # initialise a dict to hold our results
             data_dict = dict()
             # obtain the WeatherCloud ID
@@ -3804,14 +3802,11 @@ class Gw1000Collector(Collector):
             data_dict['active'] = six.indexbytes(data, index)
             return data_dict
 
-        @staticmethod
-        def parse_cmd_read_usrpath(raw_data):
+        def parse_cmd_read_usrpath(self, raw_data):
             """Parse response to CMD_READ_USRPATH API call."""
 
-            # determine the size of the data payload
-            raw_data_size = six.indexbytes(raw_data, 3)
-            # extract the data payload
-            data = raw_data[4:4 + raw_data_size - 3]
+            # obtain the data payload
+            data = self.get_payload(raw_data)
             # initialise a dict to hold our results
             data_dict = dict()
             # obtain the Ecowitt path
@@ -3822,727 +3817,966 @@ class Gw1000Collector(Collector):
             data_dict['wu_path'] = data[2 + ecowitt_size:2 + ecowitt_size + wu_size].decode()
             return data_dict
 
-    class Parser(object):
-        """Class to parse GW1000 sensor data."""
+        def parse_cmd_get_soilhumiad(self, raw_data):
+            """Parse response to CMD_GET_SOILHUMIAD API call."""
 
-        # TODO. Would be good to get rid of this too, but it is presently used elsewhere
-        multi_batt = {'wh40': {'mask': 1 << 4},
-                      'wh26': {'mask': 1 << 5},
-                      'wh25': {'mask': 1 << 6},
-                      'wh65': {'mask': 1 << 7}
-                      }
-        # TODO. Is this needed, here or elsewhere and is it complete
-        battery_state_desc = {'wh24': 'binary_desc',
-                              'wh25': 'binary_desc',
-                              'wh26': 'binary_desc',
-                              'wh31': 'binary_desc',
-                              'wh32': 'binary_desc',
-                              'wh35': 'binary_desc',
-                              'wh40': 'binary_desc',
-                              'wh41': 'level_desc',
-                              'wh51': 'binary_desc',
-                              'wh55': 'level_desc',
-                              'wh57': 'level_desc',
-                              'wh65': 'binary_desc',
-                              'wh68': 'voltage_desc',
-                              'ws80': 'voltage_desc',
-                              }
-        # Dictionary keyed by GW1000 response element containing various
-        # parameters for each response 'field'. Dictionary tuple format
-        # is (decode function name, size of data in bytes, GW1000 field name)
-        response_struct = {
-            b'\x01': ('decode_temp', 2, 'intemp'),
-            b'\x02': ('decode_temp', 2, 'outtemp'),
-            b'\x03': ('decode_temp', 2, 'dewpoint'),
-            b'\x04': ('decode_temp', 2, 'windchill'),
-            b'\x05': ('decode_temp', 2, 'heatindex'),
-            b'\x06': ('decode_humid', 1, 'inhumid'),
-            b'\x07': ('decode_humid', 1, 'outhumid'),
-            b'\x08': ('decode_press', 2, 'absbarometer'),
-            b'\x09': ('decode_press', 2, 'relbarometer'),
-            b'\x0A': ('decode_dir', 2, 'winddir'),
-            b'\x0B': ('decode_speed', 2, 'windspeed'),
-            b'\x0C': ('decode_speed', 2, 'gustspeed'),
-            b'\x0D': ('decode_rain', 2, 'rainevent'),
-            b'\x0E': ('decode_rainrate', 2, 'rainrate'),
-            b'\x0F': ('decode_rain', 2, 'rainhour'),
-            b'\x10': ('decode_rain', 2, 'rainday'),
-            b'\x11': ('decode_rain', 2, 'rainweek'),
-            b'\x12': ('decode_big_rain', 4, 'rainmonth'),
-            b'\x13': ('decode_big_rain', 4, 'rainyear'),
-            b'\x14': ('decode_big_rain', 4, 'raintotals'),
-            b'\x15': ('decode_light', 4, 'light'),
-            b'\x16': ('decode_uv', 2, 'uv'),
-            b'\x17': ('decode_uvi', 1, 'uvi'),
-            b'\x18': ('decode_datetime', 6, 'datetime'),
-            b'\x19': ('decode_speed', 2, 'daymaxwind'),
-            b'\x1A': ('decode_temp', 2, 'temp1'),
-            b'\x1B': ('decode_temp', 2, 'temp2'),
-            b'\x1C': ('decode_temp', 2, 'temp3'),
-            b'\x1D': ('decode_temp', 2, 'temp4'),
-            b'\x1E': ('decode_temp', 2, 'temp5'),
-            b'\x1F': ('decode_temp', 2, 'temp6'),
-            b'\x20': ('decode_temp', 2, 'temp7'),
-            b'\x21': ('decode_temp', 2, 'temp8'),
-            b'\x22': ('decode_humid', 1, 'humid1'),
-            b'\x23': ('decode_humid', 1, 'humid2'),
-            b'\x24': ('decode_humid', 1, 'humid3'),
-            b'\x25': ('decode_humid', 1, 'humid4'),
-            b'\x26': ('decode_humid', 1, 'humid5'),
-            b'\x27': ('decode_humid', 1, 'humid6'),
-            b'\x28': ('decode_humid', 1, 'humid7'),
-            b'\x29': ('decode_humid', 1, 'humid8'),
-            b'\x2A': ('decode_pm25', 2, 'pm251'),
-            b'\x2B': ('decode_temp', 2, 'soiltemp1'),
-            b'\x2C': ('decode_moist', 1, 'soilmoist1'),
-            b'\x2D': ('decode_temp', 2, 'soiltemp2'),
-            b'\x2E': ('decode_moist', 1, 'soilmoist2'),
-            b'\x2F': ('decode_temp', 2, 'soiltemp3'),
-            b'\x30': ('decode_moist', 1, 'soilmoist3'),
-            b'\x31': ('decode_temp', 2, 'soiltemp4'),
-            b'\x32': ('decode_moist', 1, 'soilmoist4'),
-            b'\x33': ('decode_temp', 2, 'soiltemp5'),
-            b'\x34': ('decode_moist', 1, 'soilmoist5'),
-            b'\x35': ('decode_temp', 2, 'soiltemp6'),
-            b'\x36': ('decode_moist', 1, 'soilmoist6'),
-            b'\x37': ('decode_temp', 2, 'soiltemp7'),
-            b'\x38': ('decode_moist', 1, 'soilmoist7'),
-            b'\x39': ('decode_temp', 2, 'soiltemp8'),
-            b'\x3A': ('decode_moist', 1, 'soilmoist8'),
-            b'\x3B': ('decode_temp', 2, 'soiltemp9'),
-            b'\x3C': ('decode_moist', 1, 'soilmoist9'),
-            b'\x3D': ('decode_temp', 2, 'soiltemp10'),
-            b'\x3E': ('decode_moist', 1, 'soilmoist10'),
-            b'\x3F': ('decode_temp', 2, 'soiltemp11'),
-            b'\x40': ('decode_moist', 1, 'soilmoist11'),
-            b'\x41': ('decode_temp', 2, 'soiltemp12'),
-            b'\x42': ('decode_moist', 1, 'soilmoist12'),
-            b'\x43': ('decode_temp', 2, 'soiltemp13'),
-            b'\x44': ('decode_moist', 1, 'soilmoist13'),
-            b'\x45': ('decode_temp', 2, 'soiltemp14'),
-            b'\x46': ('decode_moist', 1, 'soilmoist14'),
-            b'\x47': ('decode_temp', 2, 'soiltemp15'),
-            b'\x48': ('decode_moist', 1, 'soilmoist15'),
-            b'\x49': ('decode_temp', 2, 'soiltemp16'),
-            b'\x4A': ('decode_moist', 1, 'soilmoist16'),
-            b'\x4C': ('decode_batt', 16, 'lowbatt'),
-            b'\x4D': ('decode_pm25', 2, 'pm251_24h_avg'),
-            b'\x4E': ('decode_pm25', 2, 'pm252_24h_avg'),
-            b'\x4F': ('decode_pm25', 2, 'pm253_24h_avg'),
-            b'\x50': ('decode_pm25', 2, 'pm254_24h_avg'),
-            b'\x51': ('decode_pm25', 2, 'pm252'),
-            b'\x52': ('decode_pm25', 2, 'pm253'),
-            b'\x53': ('decode_pm25', 2, 'pm254'),
-            b'\x58': ('decode_leak', 1, 'leak1'),
-            b'\x59': ('decode_leak', 1, 'leak2'),
-            b'\x5A': ('decode_leak', 1, 'leak3'),
-            b'\x5B': ('decode_leak', 1, 'leak4'),
-            b'\x60': ('decode_distance', 1, 'lightningdist'),
-            b'\x61': ('decode_utc', 4, 'lightningdettime'),
-            b'\x62': ('decode_count', 4, 'lightningcount'),
-            # WH34 battery data is not obtained from live data rather it is
-            # obtained from sensor ID data
-            b'\x63': ('decode_wh34', 3, 'temp9'),
-            b'\x64': ('decode_wh34', 3, 'temp10'),
-            b'\x65': ('decode_wh34', 3, 'temp11'),
-            b'\x66': ('decode_wh34', 3, 'temp12'),
-            b'\x67': ('decode_wh34', 3, 'temp13'),
-            b'\x68': ('decode_wh34', 3, 'temp14'),
-            b'\x69': ('decode_wh34', 3, 'temp15'),
-            b'\x6A': ('decode_wh34', 3, 'temp16'),
-            # WH45 battery data is not obtained from live data rather it is
-            # obtained from sensor ID data
-            b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
-                                          'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
-                                          'co2', 'co2_24h_avg')),
-            b'\x71': (None, None, None),
-            b'\x72': ('decode_wet', 1, 'leafwet1'),
-            b'\x73': ('decode_wet', 1, 'leafwet2'),
-            b'\x74': ('decode_wet', 1, 'leafwet3'),
-            b'\x75': ('decode_wet', 1, 'leafwet4'),
-            b'\x76': ('decode_wet', 1, 'leafwet5'),
-            b'\x77': ('decode_wet', 1, 'leafwet6'),
-            b'\x78': ('decode_wet', 1, 'leafwet7'),
-            b'\x79': ('decode_wet', 1, 'leafwet8')
-        }
+            # obtain the data payload
+            data = self.get_payload(raw_data)
+            # initialise a dict to hold our results
+            data_dict = dict()
+            # initialise a counter
+            index = 0
+            # iterate over the data
+            while index < len(data):
+                try:
+                    channel = six.byte2int(data[index])
+                except TypeError:
+                    channel = data[index]
+                data_dict[channel] = {}
+                try:
+                    humidity = six.byte2int(data[index + 1])
+                except TypeError:
+                    humidity = data[index + 1]
+                data_dict[channel]['humidity'] = humidity
+                data_dict[channel]['ad'] = struct.unpack(">h", data[index + 2:index + 4])[0]
+                try:
+                    ad_select = six.byte2int(data[index + 4])
+                except TypeError:
+                    ad_select = data[index + 4]
+                data_dict[channel]['ad_select'] = ad_select
+                try:
+                    min_ad = six.byte2int(data[index + 5])
+                except TypeError:
+                    min_ad = data[index + 5]
+                data_dict[channel]['adj_min'] = min_ad
+                data_dict[channel]['adj_max'] = struct.unpack(">h", data[index + 6:index + 8])[0]
+                index += 8
+            return data_dict
 
-        # tuple of field codes for rain related fields in the GW1000 live data
-        # so we can isolate these fields
-        rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
-                            b'\x11', b'\x12', b'\x13', b'\x14')
-        # tuple of field codes for wind related fields in the GW1000 live data
-        # so we can isolate these fields
-        wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
+        def parse_cmd_get_mulchoffsett(self, raw_data):
+            """Parse response to CMD_GET_MulCH_OFFSET API call."""
 
-        def __init__(self, is_wh24=False, debug_rain=False, debug_wind=False):
-            # Tell our battery state decoding whether we have a WH24 or a WH65
-            # (they both share the same battery state bit). By default we are
-            # coded to use a WH65. But is there a WH24 connected?
-            if is_wh24:
-                # We have a WH24. On startup we are set for a WH65 but if it is
-                # a restart we will likely already be setup for a WH24. We need
-                # to handle both cases.
-                if 'wh24' not in self.multi_batt.keys():
-                    # we don't have a 'wh24' entry so create one, it's the same
-                    # as the 'wh65' entry
-                    self.multi_batt['wh24'] = self.multi_batt['wh65']
-                    # and pop off the no longer needed WH65 decode dict entry
-                    self.multi_batt.pop('wh65')
-            else:
-                # We don't have a WH24 but a WH65. On startup we are set for a
-                # WH65 but if it is a restart it is possible we have already
-                # been setup for a WH24. We need to handle both cases.
-                if 'wh65' not in self.multi_batt.keys():
-                    # we don't have a 'wh65' entry so create one, it's the same
-                    # as the 'wh24' entry
-                    self.multi_batt['wh65'] = self.multi_batt['wh24']
-                    # and pop off the no longer needed WH65 decode dict entry
-                    self.multi_batt.pop('wh24')
-            # get debug_rain and debug_wind
-            self.debug_rain = debug_rain
-            self.debug_wind = debug_wind
+            # obtain the data payload
+            data = self.get_payload(raw_data)
+            # initialise a dict to hold our results
+            data_dict = dict()
+            # initialise a counter
+            index = 0
+            # iterate over the data
+            while index < len(data):
+                try:
+                    channel = six.byte2int(data[index])
+                except TypeError:
+                    channel = data[index]
+                data_dict[channel] = {}
+                try:
+                    data_dict[channel]['hum'] = struct.unpack("b", data[index + 1])[0]
+                except TypeError:
+                    data_dict[channel]['hum'] = struct.unpack("b", six.int2byte(data[index + 1]))[0]
+                try:
+                    data_dict[channel]['temp'] = struct.unpack("b", data[index + 2])[0] / 10.0
+                except TypeError:
+                    data_dict[channel]['temp'] = struct.unpack("b", six.int2byte(data[index + 2]))[0] / 10.0
+                index += 3
+            return data_dict
 
-        def parse(self, raw_data, timestamp=None):
-            """Parse raw sensor data.
+        def parse_cmd_get_pm25_offset(self, raw_data):
+            """Parse response to CMD_GET_PM25_OFFSET API call."""
 
-            Parse the raw sensor data and create a dict of sensor
-            observations/status data. Add a timestamp to the data if one does
-            not already exist.
+            # obtain the data payload
+            data = self.get_payload(raw_data)
+            # initialise a dict to hold our results
+            data_dict = dict()
+            # initialise a counter
+            index = 0
+            # iterate over the data
+            while index < len(data):
+                try:
+                    channel = six.byte2int(data[index])
+                except TypeError:
+                    channel = data[index]
+                data_dict[channel] = struct.unpack(">h", data[index + 1:index + 3])[0] / 10.0
+                index += 3
+            return data_dict
 
-            Returns a dict of observations/status data."""
+        def parse_cmd_get_co2_offset(self, raw_data):
+            """Parse response to CMD_GET_CO2_OFFSET API call.
 
-            # obtain the response size, it's a big endian short (two byte) integer
-            resp_size = struct.unpack(">H", raw_data[3:5])[0]
-            # obtain the response
-            resp = raw_data[5:5 + resp_size - 4]
-            # log the actual sensor data as a sequence of bytes in hex
-            if weewx.debug >= 3:
-                logdbg("sensor data is '%s'" % (bytes_to_hex(resp),))
-            data = {}
-            if len(resp) > 0:
-                index = 0
-                while index < len(resp) - 1:
-                    try:
-                        decode_str, field_size, field = self.response_struct[resp[index:index + 1]]
-                    except KeyError:
-                        # We struck a field 'address' we do not know how to
-                        # process. Ideally we would like to skip and move onto
-                        # the next field (if there is one) but the problem is
-                        # we do not know how long the data of this unknown
-                        # field is. We could go on guessing the field data size
-                        # by looking for the next field address but we won't
-                        # know if we do find a valid field address is it a
-                        # field address or data from this field? Of course this
-                        # could also be corrupt data (unlikely though as it was
-                        # decoded using a checksum). So all we can really do is
-                        # accept the data we have so far, log the issue and
-                        # ignore the remaining data.
-                        logerr("Unknown field address '%s' detected. "
-                               "Remaining sensor data ignored." % (bytes_to_hex(resp[index:index + 1]),))
-                        break
-                    else:
-                        _field_data = getattr(self, decode_str)(resp[index + 1:index + 1 + field_size],
-                                                                field)
-                        if _field_data is not None:
-                            data.update(_field_data)
-                            if self.debug_rain and resp[index:index + 1] in self.rain_field_codes:
-                                loginf("parse: raw rain data: field:%s and "
-                                       "data:%s decoded as %s=%s" % (bytes_to_hex(resp[index:index + 1]),
-                                                                     bytes_to_hex(resp[index + 1:index + 1 + field_size]),
-                                                                     field,
-                                                                     _field_data[field]))
-                            if self.debug_wind and resp[index:index + 1] in self.wind_field_codes:
-                                loginf("parse: raw wind data: field:%s and "
-                                       "data:%s decoded as %s=%s" % (resp[index:index + 1],
-                                                                     bytes_to_hex(resp[index + 1:index + 1 + field_size]),
-                                                                     field,
-                                                                     _field_data[field]))
-                        index += field_size + 1
-            # if it does not exist add a datetime field with the current epoch timestamp
-            if 'datetime' not in data or 'datetime' in data and data['datetime'] is None:
-                data['datetime'] = timestamp if timestamp is not None else int(time.time() + 0.5)
-            return data
+            Data payload:
 
-        @staticmethod
-        def decode_temp(data, field=None):
-            """Decode temperature data.
-
-            Data is contained in a two byte big endian signed integer and
-            represents tenths of a degree.
+                bytes 0-1 incl  CO2 offset (big endian signed short)
+                bytes 2-3 incl  CPM2.5 offset (big endian signed short)
+                bytes 4-5 incl  PM10 offset (big endian signed short)
             """
 
-            if len(data) == 2:
-                value = struct.unpack(">h", data)[0] / 10.0
-            else:
-                value = None
-            if field is not None:
-                return {field: value}
-            else:
-                return value
+            # obtain the data payload
+            data = self.get_payload(raw_data)
+            # decode the offsets and store in a dict
+            data_dict = {'co2': struct.unpack(">h", data[0:2])[0],
+                         'pm25': struct.unpack(">h", data[2:4])[0] / 10.0,
+                         'pm10': struct.unpack(">h", data[4:6])[0] / 10.0}
+            return data_dict
 
-        @staticmethod
-        def decode_humid(data, field=None):
-            """Decode humidity data.
+        def parse_cmd_read_station_mac(self, raw_data):
+            """Parse response to CMD_READ_STATION_MAC API call.
 
-            Data is contained in a single unsigned byte and represents whole units.
+            Data payload:
+
+                bytes 0-5 incl  MAC address byte1, byte2 .. byte6
             """
 
-            if len(data) == 1:
-                value = struct.unpack("B", data)[0]
-            else:
-                value = None
-            if field is not None:
-                return {field: value}
-            else:
-                return value
+            # obtain the data payload
+            data = self.get_payload(raw_data)
+            # return a dict containing the decoded the MAC address
+            return {'mac': bytes_to_hex(data[0:6], separator=":")}
 
-        @staticmethod
-        def decode_press(data, field=None):
-            """Decode pressure data.
+        def parse_cmd_gw1000_livedata(self, raw_data):
+            """Parse response to CMD_GW1000_LIVEDATA API call."""
 
-            Data is contained in a two byte big endian integer and represents
-            tenths of a unit.
+            # obtain the data payload
+            data = self.get_payload(raw_data)
+            # initialise a dict to hold our results
+            data_dict = {}
+
+            return data_dict
+
+        def parse_cmd_read_ssss(self, raw_data):
+            """Parse response to CMD_READ_SSSS API call.
+
+            Data payload:
+
+                byte 0          frequency (0=433MHz, 1=868MHZ, 2=915MHz,
+                                3=920MHz)
+                byte 1          sensor type (0=WH24, 1=WH65)
+                bytes 2-5 incl  UTC (unsigned long)
+                byte 6          local timezone index (integer)
+                byte 7          DST status (0=False, not 0=True)
             """
 
-            if len(data) == 2:
-                value = struct.unpack(">H", data)[0] / 10.0
-            else:
-                value = None
-            if field is not None:
-                return {field: value}
-            else:
-                return value
+            # obtain the data payload
+            data = self.get_payload(raw_data)
+            # decode the data and store in a dict
+            data_dict = {'frequency': six.indexbytes(data, 0),
+                         'sensor_type': six.indexbytes(data, 1),
+                         'utc': self.decode_utc(data[2:6]),
+                         'timezone_index': six.indexbytes(data, 6),
+                         'dst_status': six.indexbytes(data, 7) != 0}
+            return data_dict
 
-        @staticmethod
-        def decode_dir(data, field=None):
-            """Decode direction data.
+        def parse_cmd_read_raindata(self, raw_data):
+            """Parse response to CMD_READ_RAINDATA API call."""
 
-            Data is contained in a two byte big endian integer and represents
-            whole degrees.
+            # obtain the data payload
+            data = self.get_payload(raw_data)
+            # decode the data and store in a dict
+            data_dict = {'rain_rate': self.decode_big_rain(data[0:4]),
+                         'rain_day': self.decode_big_rain(data[4:8]),
+                         'rain_week': self.decode_big_rain(data[8:12]),
+                         'rain_month': self.decode_big_rain(data[12:16]),
+                         'rain_year': self.decode_big_rain(data[16:20])}
+            return data_dict
+
+        def parse_cmd_read_gain(self, raw_data):
+            """Parse response to CMD_READ_GAIN API call."""
+
+            # obtain the data payload
+            data = self.get_payload(raw_data)
+            # decode the data and store in a dict
+            data_dict = {'fixed': struct.unpack(">H", data[0:2])[0] / 10.0,
+                         'uv': struct.unpack(">H", data[2:4])[0] / 100.0,
+                         'solar': struct.unpack(">H", data[4:6])[0] / 100.0,
+                         'wind': struct.unpack(">H", data[6:8])[0] / 100.0,
+                         'rain': struct.unpack(">H", data[8:10])[0] / 100.0}
+            return data_dict
+
+        def parse_cmd_read_calibration(self, raw_data):
+            """Parse response to CMD_READ_CALIBRATION API call."""
+
+            # obtain the data payload
+            data = self.get_payload(raw_data)
+            # initialise a dict to hold our results
+            data_dict = dict()
+            # and decode/store the offset calibration data
+            data_dict['intemp'] = struct.unpack(">h", data[0:2])[0] / 10.0
+            try:
+                data_dict['inhum'] = struct.unpack("b", data[2])[0]
+            except TypeError:
+                data_dict['inhum'] = struct.unpack("b", six.int2byte(data[2]))[0]
+            data_dict['abs'] = struct.unpack(">l", data[3:7])[0] / 10.0
+            data_dict['rel'] = struct.unpack(">l", data[7:11])[0] / 10.0
+            data_dict['outtemp'] = struct.unpack(">h", data[11:13])[0] / 10.0
+            try:
+                data_dict['outhum'] = struct.unpack("b", data[13])[0]
+            except TypeError:
+                data_dict['outhum'] = struct.unpack("b", six.int2byte(data[13]))[0]
+            data_dict['dir'] = struct.unpack(">h", data[14:16])[0]
+            return data_dict
+
+        def parse_cmd_read_sensor_id(self, raw_data):
+            """Parse response to CMD_READ_SENSOR_ID API call."""
+
+            # obtain the data payload
+            data = self.get_payload(raw_data)
+            # initialise a dict to hold our results
+            data_dict = {}
+
+            return data_dict
+
+        def parse_cmd_read_sensor_id_new(self, raw_data):
+            """Parse response to CMD_READ_SENSOR_ID_NEW API call."""
+
+            # obtain the data payload
+            data = self.get_payload(raw_data)
+            # initialise a dict to hold our results
+            data_dict = {}
+
+            return data_dict
+
+        def parse_cmd_read_firmware_version(self, raw_data):
+            """Parse response to CMD_READ_FIRMWARE_VERSION API call.
+
+            Data payload:
+
+                byte 0          firmware string length (max 23)
+                bytes 1-n incl  firmware version string
             """
 
-            if len(data) == 2:
-                value = struct.unpack(">H", data)[0]
-            else:
-                value = None
-            if field is not None:
-                return {field: value}
-            else:
-                return value
+            # obtain the data payload
+            data = self.get_payload(raw_data)
+            # initialise a dict to hold our results
+            data_dict = dict()
+            # obtain the size of the firmware string
+            fw_size = six.indexbytes(data, 0)
+            # unpack the firmware bytestring, this gives a tuple of bytes
+            fw_tuple = struct.unpack("B" * fw_size, data[1:1 + fw_size])
+            # convert the sequence of bytes to unicode characters and assemble
+            # as a string and add to the dict
+            data_dict['firmware'] = "".join([chr(x) for x in fw_tuple])
+            return data_dict
 
-        @staticmethod
-        def decode_big_rain(data, field=None):
-            """Decode 4 byte rain data.
+        class SensorId(object):
+            """Class to manage decoding of GW1000 sensor ID data.
 
-            Data is contained in a four byte big endian integer and represents
-            tenths of a unit.
+            Class Sensors allows access to various elements of sensor ID data via a
+            number of properties and methods when the class is initialised with the
+            GW1000 API response to a CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID
+            command.
+
+            A Sensors object can be initialised with sensor ID data on
+            instantiation or an existing Sensors object can be updated by calling
+            the set_sensor_id_data() method passing the sensor ID data to be used
+            as the only parameter.
             """
 
-            if len(data) == 4:
-                value = struct.unpack(">L", data)[0] / 10.0
-            else:
-                value = None
-            if field is not None:
-                return {field: value}
-            else:
-                return value
-
-        @staticmethod
-        def decode_datetime(data, field=None):
-            """Decode date-time data.
-
-            Unknown format but length is six bytes.
-            """
-
-            if len(data) == 6:
-                value = struct.unpack("BBBBBB", data)
-            else:
-                value = None
-            if field is not None:
-                return {field: value}
-            else:
-                return value
-
-        @staticmethod
-        def decode_distance(data, field=None):
-            """Decode lightning distance.
-
-            Data is contained in a single byte integer and represents a value
-            from 0 to 40km.
-            """
-
-            if len(data) == 1:
-                value = struct.unpack("B", data)[0]
-                value = value if value <= 40 else None
-            else:
-                value = None
-            if field is not None:
-                return {field: value}
-            else:
-                return value
-
-        @staticmethod
-        def decode_utc(data, field=None):
-            """Decode UTC time.
-
-            The GW1000 API claims to provide 'UTC time' as a 4 byte big endian
-            integer. The 4 byte integer is a unix epoch timestamp; however,
-            the timestamp is offset by the stations timezone. So for a station
-            in the +10 hour timezone, the timestamp returned is the present
-            epoch timestamp plus 10 * 3600 seconds.
-
-            When decoded in localtime the decoded date-time is off by the
-            station time zone, when decoded as GMT the date and time figures
-            are correct but the timezone is incorrect.
-
-            In any case decode the 4 byte big endian integer as is and any
-            further use of this timestamp needs to take the above time zone
-            offset into account when using the timestamp.
-            """
-
-            if len(data) == 4:
-                # unpack the 4 byte int
-                value = struct.unpack(">L", data)[0]
-                # when processing the last lightning strike time if the value
-                # is 0xFFFFFFFF it means we have never seen a strike so return
-                # None
-                value = value if value != 0xFFFFFFFF else None
-            else:
-                value = None
-            if field is not None:
-                return {field: value}
-            else:
-                return value
-
-        @staticmethod
-        def decode_count(data, field=None):
-            """Decode lightning count.
-
-            Count is an integer stored in a 4 byte big endian integer."""
-
-            if len(data) == 4:
-                value = struct.unpack(">L", data)[0]
-            else:
-                value = None
-            if field is not None:
-                return {field: value}
-            else:
-                return value
-
-        # alias' for other decodes
-        decode_speed = decode_press
-        decode_rain = decode_press
-        decode_rainrate = decode_press
-        decode_light = decode_big_rain
-        decode_uv = decode_press
-        decode_uvi = decode_humid
-        decode_moist = decode_humid
-        decode_pm25 = decode_press
-        decode_leak = decode_humid
-        decode_pm10 = decode_press
-        decode_co2 = decode_dir
-        decode_wet = decode_humid
-
-        def decode_wh34(self, data, field=None):
-            """Decode WH34 sensor data.
-
-            Data consists of three bytes:
-
-            Byte    Field               Comments
-            1-2     temperature         standard Ecowitt temperature data, two
-                                        byte big endian signed integer
-                                        representing tenths of a degree
-            3       battery voltage     0.02 * value Volts
-            """
-
-            if len(data) == 3 and field is not None:
-                results = dict()
-                results[field] = self.decode_temp(data[0:2])
-                # we could decode the battery voltage but we will be obtaining
-                # battery voltage data from the sensor IDs in a later step so
-                # we can skip it here
-                return results
-            return {}
-
-        def decode_wh45(self, data, fields=None):
-            """Decode WH45 sensor data.
-
-            WH45 sensor data includes TH sensor values, CO2/PM2.5/PM10 sensor
-            values and 24 hour aggregates and battery state data in 16 bytes.
-
-            The 16 bytes of WH45 sensor data is allocated as follows:
-            Byte(s) #      Data               Format          Comments
-            bytes   1-2    temperature        short           C x10
-                    3      humidity           unsigned byte   percent
-                    4-5    PM10               unsigned short  ug/m3 x10
-                    6-7    PM10 24hour avg    unsigned short  ug/m3 x10
-                    8-9    PM2.5              unsigned short  ug/m3 x10
-                    10-11  PM2.5 24 hour avg  unsigned short  ug/m3 x10
-                    12-13  CO2                unsigned short  ppm
-                    14-15  CO2 24 our avg     unsigned short  ppm
-                    16     battery state      unsigned byte   0-5 <=1 is low
-            """
-
-            if len(data) == 16 and fields is not None:
-                results = dict()
-                results[fields[0]] = self.decode_temp(data[0:2])
-                results[fields[1]] = self.decode_humid(data[2:3])
-                results[fields[2]] = self.decode_pm10(data[3:5])
-                results[fields[3]] = self.decode_pm10(data[5:7])
-                results[fields[4]] = self.decode_pm25(data[7:9])
-                results[fields[5]] = self.decode_pm25(data[9:11])
-                results[fields[6]] = self.decode_co2(data[11:13])
-                results[fields[7]] = self.decode_co2(data[13:15])
-                # we could decode the battery state but we will be obtaining
-                # battery state data from the sensor IDs in a later step so
-                # we can skip it here
-                return results
-            return {}
-
-        @staticmethod
-        def decode_batt(data, field=None):
-            """Decode battery status data.
-
-            GW1000 firmware version 1.6.4 and earlier supported 16 bytes of
-            battery state data at response field x4C for the following
-            sensors:
-                WH24, WH25, WH26(WH32), WH31 ch1-8, WH40, WH41/WH43 ch1-4,
-                WH51 ch1-8, WH55 ch1-4, WH57, WH68 and WS80
-
-            As of firmware version 1.6.5 the 16 bytes of battery state data is
-            no longer returned at all. CMD_READ_SENSOR_ID_NEW or
-            CMD_READ_SENSOR_ID must be used to obtain battery state information
-            for connected sensors. The decode_batt() method has been retained
-            to support devices using firmware version 1.6.4 and earlier.
-
-            Since the GW1000 driver now obtains battery state information via
-            CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID only the decode_batt()
-            method now returns None so that firmware versions before 1.6.5
-            continue to be supported.
-            """
-
-            return None
-
-    class Sensors(object):
-        """Class to manage GW1000 sensor ID data.
-
-        Class Sensors allows access to various elements of sensor ID data via a
-        number of properties and methods when the class is initialised with the
-        GW1000 API response to a CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID
-        command.
-
-        A Sensors object can be initialised with sensor ID data on
-        instantiation or an existing Sensors object can be updated by calling
-        the set_sensor_id_data() method passing the sensor ID data to be used
-        as the only parameter.
-        """
-
-        # Tuple of sensor ID values for sensors that are not registered with
-        # the GW1000. 'fffffffe' means the sensor is disabled, 'ffffffff' means
-        # the sensor is registering.
-        not_registered = ('fffffffe', 'ffffffff')
-
-        def __init__(self, sensor_id_data=None, show_battery=False):
-            """Initialise myself"""
-
-            # set the show_battery property
-            self.show_battery = show_battery
-            # initialise a dict to hold the parsed sensor data
-            self.sensor_data = dict()
-            # parse the raw sensor ID data and store the results in my parsed
-            # sensor data dict
-            self.set_sensor_id_data(sensor_id_data)
-
-        def set_sensor_id_data(self, id_data):
-            """Parse the raw sensor ID data and store the results."""
-
-            # initialise our parsed sensor ID data dict
-            self.sensor_data = {}
-            # do we have any raw sensor ID data
-            if id_data is not None and len(id_data) > 0:
-                # determine the size of the sensor id data, it's a big endian
-                # short (two byte) integer at bytes 4 and 5
-                data_size = struct.unpack(">H", id_data[3:5])[0]
-                # extract the actual sensor id data
-                data = id_data[5:5 + data_size - 4]
-                # initialise a counter
-                index = 0
-                # iterate over the data
-                while index < len(data):
-                    # get the sensor address
-                    address = data[index:index + 1]
-                    # get the sensor ID
-                    sensor_id = bytes_to_hex(data[index + 1: index + 5],
-                                             separator='',
-                                             caps=False)
-                    # get the method to be used to decode the battery state
-                    # data
-                    batt_fn = Gw1000Collector.sensor_ids[data[index:index + 1]]['batt_fn']
-                    # get the raw battery state data
-                    batt = six.indexbytes(data, index + 5)
-                    # if we are not showing all battery state data then the
-                    # battery state for any sensor with signal == 0 must be set
-                    # to None, otherwise parse the raw battery state data as
-                    # applicable
-                    if not self.show_battery and six.indexbytes(data, index + 6) == 0:
-                        batt_state = None
-                    else:
-                        # parse the raw battery state data
-                        batt_state = getattr(self, batt_fn)(batt)
-                    # now add the sensor to our sensor data dict
-                    self.sensor_data[address] = {'id': sensor_id,
-                                                 'battery': batt_state,
-                                                 'signal': six.indexbytes(data, index + 6)
-                                                 }
-                    # each sensor entry is seven bytes in length so skip to the
-                    # start of the next sensor
-                    index += 7
-
-        @property
-        def addresses(self):
-            """Obtain a list of sensor addresses.
-
-            This includes all sensor addresses reported by the GW1000, this
-            includes:
-            - sensors that are actually connected to the GW1000
-            - sensors that are attempting to connect to the GW1000
-            - GW1000 sensor addresses that are searching for a sensor
-            - GW1000 sensor addresses that are disabled
-            """
-
-            # this is simply the list of keys to our sensor data dict
-            return self.sensor_data.keys()
-
-        @property
-        def connected_addresses(self):
-            """Obtain a list of sensor addresses for connected sensors only.
-
-            Sometimes we only want a list of addresses for sensors that are
-            actually connected to the GW1000. We can filter out those addresses
-            that do not have connected sensors by looking at the sensor ID. If
-            the sensor ID is 'fffffffe' either the sensor is connecting to the
-            GW1000 or the GW1000 is searching for a sensor for that address. If
-            the sensor ID is 'ffffffff' the GW1000 sensor address is disabled.
-            """
-
-            # initialise a list to hold our connected sensor addresses
-            connected_list = list()
-            # iterate over all sensors
-            for address, data in six.iteritems(self.sensor_data):
-                # if the sensor ID is neither 'fffffffe' or 'ffffffff' then it
-                # must be connected
-                if data['id'] not in self.not_registered:
-                    connected_list.append(address)
-            return connected_list
-
-        @property
-        def data(self):
-            """Obtain the data dict for all known sensors."""
-
-            return self.sensor_data
-
-        def id(self, address):
-            """Obtain the sensor ID for a given sensor address."""
-
-            return self.sensor_data[address]['id']
-
-        def battery_state(self, address):
-            """Obtain the sensor battery state for a given sensor address."""
-
-            return self.sensor_data[address]['battery']
-
-        def signal_level(self, address):
-            """Obtain the sensor signal level for a given sensor address."""
-
-            return self.sensor_data[address]['signal']
-
-        @property
-        def battery_and_signal_data(self):
-            """Obtain a dict of sensor battery state and signal level data.
-
-            Iterate over the list of connected sensors and obtain a dict of
-            sensor battery state data for each connected sensor.
-            """
-
-            # initialise a dict to hold the battery state data
-            data = {}
-            # iterate over our connected sensors
-            for sensor in self.connected_addresses:
-                # get the sensor name
-                sensor_name = Gw1000Collector.sensor_ids[sensor]['name']
-                # create the sensor battery state field for this sensor
-                data[''.join([sensor_name, '_batt'])] = self.battery_state(sensor)
-                # create the sensor signal level field for this sensor
-                data[''.join([sensor_name, '_sig'])] = self.signal_level(sensor)
-            # return our data
-            return data
-
-        @staticmethod
-        def battery_desc(address, value):
-            """Determine the battery state description for a given sensor.
-
-            Given the address...
-            """
-
-            if value is not None:
-                batt_fn = Gw1000Collector.sensor_ids[address].get('batt_fn')
-                if batt_fn == 'batt_binary':
-                    if value == 0:
-                        return "OK"
-                    elif value == 1:
-                        return "low"
-                    else:
-                        return 'Unknown'
-                elif batt_fn == 'batt_int':
-                    if value <= 1:
-                        return "low"
-                    elif value == 6:
-                        return "DC"
-                    elif value <= 5:
-                        return "OK"
-                    else:
-                        return 'Unknown'
-                elif batt_fn == 'batt_volt':
-                    if value <= 1.2:
-                        return "low"
-                    else:
-                        return "OK"
-            else:
-                return 'Unknown'
-
-        @staticmethod
-        def batt_binary(batt):
-            """Decode a binary battery state.
-
-            Battery state is stored in bit 0 as either 0 or 1. If 1 the battery
-            is low, if 0 the battery is normal. We need to mask off bits 1 to 7 as
-            they are not guaranteed to be set in any particular way.
-            """
-
-            return batt & 1
-
-        @staticmethod
-        def batt_int(batt):
-            """Decode a integer battery state.
-
-            According to the API documentation battery state is stored as an
-            integer from 0 to 5 with <=1 being considered low. Experience with
-            WH43 has shown that battery state 6 also exists when the device is
-            run from DC. This does not appear to be documented in the API
-            documentation.
-            """
-
-            return batt
-
-        @staticmethod
-        def batt_volt(batt):
-            """Decode a voltage battery state.
-
-            Battery state is stored as integer values of battery voltage/0.02
-            with <=1.2V considered low.
-            """
-
-            return round(0.02 * batt, 2)
+            # Tuple of sensor ID values for sensors that are not registered with
+            # the GW1000. 'fffffffe' means the sensor is disabled, 'ffffffff' means
+            # the sensor is registering.
+            not_registered = ('fffffffe', 'ffffffff')
+
+            def __init__(self, sensor_id_data=None, show_battery=False):
+                """Initialise myself"""
+
+                # set the show_battery property
+                self.show_battery = show_battery
+                # initialise a dict to hold the parsed sensor data
+                self.sensor_data = dict()
+                # parse the raw sensor ID data and store the results in my parsed
+                # sensor data dict
+                self.set_sensor_id_data(sensor_id_data)
+
+            def set_sensor_id_data(self, id_data):
+                """Parse the raw sensor ID data and store the results."""
+
+                # initialise our parsed sensor ID data dict
+                self.sensor_data = {}
+                # do we have any raw sensor ID data
+                if id_data is not None and len(id_data) > 0:
+                    # determine the size of the sensor id data, it's a big endian
+                    # short (two byte) integer at bytes 4 and 5
+                    data_size = struct.unpack(">H", id_data[3:5])[0]
+                    # extract the actual sensor id data
+                    data = id_data[5:5 + data_size - 4]
+                    # initialise a counter
+                    index = 0
+                    # iterate over the data
+                    while index < len(data):
+                        # get the sensor address
+                        address = data[index:index + 1]
+                        # get the sensor ID
+                        sensor_id = bytes_to_hex(data[index + 1: index + 5],
+                                                 separator='',
+                                                 caps=False)
+                        # get the method to be used to decode the battery state
+                        # data
+                        batt_fn = Gw1000Collector.sensor_ids[data[index:index + 1]]['batt_fn']
+                        # get the raw battery state data
+                        batt = six.indexbytes(data, index + 5)
+                        # if we are not showing all battery state data then the
+                        # battery state for any sensor with signal == 0 must be set
+                        # to None, otherwise parse the raw battery state data as
+                        # applicable
+                        if not self.show_battery and six.indexbytes(data, index + 6) == 0:
+                            batt_state = None
+                        else:
+                            # parse the raw battery state data
+                            batt_state = getattr(self, batt_fn)(batt)
+                        # now add the sensor to our sensor data dict
+                        self.sensor_data[address] = {'id': sensor_id,
+                                                     'battery': batt_state,
+                                                     'signal': six.indexbytes(data, index + 6)
+                                                     }
+                        # each sensor entry is seven bytes in length so skip to the
+                        # start of the next sensor
+                        index += 7
+
+            @property
+            def addresses(self):
+                """Obtain a list of sensor addresses.
+
+                This includes all sensor addresses reported by the GW1000, this
+                includes:
+                - sensors that are actually connected to the GW1000
+                - sensors that are attempting to connect to the GW1000
+                - GW1000 sensor addresses that are searching for a sensor
+                - GW1000 sensor addresses that are disabled
+                """
+
+                # this is simply the list of keys to our sensor data dict
+                return self.sensor_data.keys()
+
+            @property
+            def connected_addresses(self):
+                """Obtain a list of sensor addresses for connected sensors only.
+
+                Sometimes we only want a list of addresses for sensors that are
+                actually connected to the GW1000. We can filter out those addresses
+                that do not have connected sensors by looking at the sensor ID. If
+                the sensor ID is 'fffffffe' either the sensor is connecting to the
+                GW1000 or the GW1000 is searching for a sensor for that address. If
+                the sensor ID is 'ffffffff' the GW1000 sensor address is disabled.
+                """
+
+                # initialise a list to hold our connected sensor addresses
+                connected_list = list()
+                # iterate over all sensors
+                for address, data in six.iteritems(self.sensor_data):
+                    # if the sensor ID is neither 'fffffffe' or 'ffffffff' then it
+                    # must be connected
+                    if data['id'] not in self.not_registered:
+                        connected_list.append(address)
+                return connected_list
+
+            @property
+            def data(self):
+                """Obtain the data dict for all known sensors."""
+
+                return self.sensor_data
+
+            def id(self, address):
+                """Obtain the sensor ID for a given sensor address."""
+
+                return self.sensor_data[address]['id']
+
+            def battery_state(self, address):
+                """Obtain the sensor battery state for a given sensor address."""
+
+                return self.sensor_data[address]['battery']
+
+            def signal_level(self, address):
+                """Obtain the sensor signal level for a given sensor address."""
+
+                return self.sensor_data[address]['signal']
+
+            @property
+            def battery_and_signal_data(self):
+                """Obtain a dict of sensor battery state and signal level data.
+
+                Iterate over the list of connected sensors and obtain a dict of
+                sensor battery state data for each connected sensor.
+                """
+
+                # initialise a dict to hold the battery state data
+                data = {}
+                # iterate over our connected sensors
+                for sensor in self.connected_addresses:
+                    # get the sensor name
+                    sensor_name = Gw1000Collector.sensor_ids[sensor]['name']
+                    # create the sensor battery state field for this sensor
+                    data[''.join([sensor_name, '_batt'])] = self.battery_state(sensor)
+                    # create the sensor signal level field for this sensor
+                    data[''.join([sensor_name, '_sig'])] = self.signal_level(sensor)
+                # return our data
+                return data
+
+            @staticmethod
+            def battery_desc(address, value):
+                """Determine the battery state description for a given sensor.
+
+                Given the address...
+                """
+
+                if value is not None:
+                    batt_fn = Gw1000Collector.sensor_ids[address].get('batt_fn')
+                    if batt_fn == 'batt_binary':
+                        if value == 0:
+                            return "OK"
+                        elif value == 1:
+                            return "low"
+                        else:
+                            return 'Unknown'
+                    elif batt_fn == 'batt_int':
+                        if value <= 1:
+                            return "low"
+                        elif value == 6:
+                            return "DC"
+                        elif value <= 5:
+                            return "OK"
+                        else:
+                            return 'Unknown'
+                    elif batt_fn == 'batt_volt':
+                        if value <= 1.2:
+                            return "low"
+                        else:
+                            return "OK"
+                else:
+                    return 'Unknown'
+
+            @staticmethod
+            def batt_binary(batt):
+                """Decode a binary battery state.
+
+                Battery state is stored in bit 0 as either 0 or 1. If 1 the battery
+                is low, if 0 the battery is normal. We need to mask off bits 1 to 7 as
+                they are not guaranteed to be set in any particular way.
+                """
+
+                return batt & 1
+
+            @staticmethod
+            def batt_int(batt):
+                """Decode a integer battery state.
+
+                According to the API documentation battery state is stored as an
+                integer from 0 to 5 with <=1 being considered low. Experience with
+                WH43 has shown that battery state 6 also exists when the device is
+                run from DC. This does not appear to be documented in the API
+                documentation.
+                """
+
+                return batt
+
+            @staticmethod
+            def batt_volt(batt):
+                """Decode a voltage battery state.
+
+                Battery state is stored as integer values of battery voltage/0.02
+                with <=1.2V considered low.
+                """
+
+                return round(0.02 * batt, 2)
+
+        class SensorLiveData(object):
+            """Class to parse GW1000 sensor data."""
+
+            # TODO. Would be good to get rid of this too, but it is presently used elsewhere
+            multi_batt = {'wh40': {'mask': 1 << 4},
+                          'wh26': {'mask': 1 << 5},
+                          'wh25': {'mask': 1 << 6},
+                          'wh65': {'mask': 1 << 7}
+                          }
+            # TODO. Is this needed, here or elsewhere and is it complete
+            battery_state_desc = {'wh24': 'binary_desc',
+                                  'wh25': 'binary_desc',
+                                  'wh26': 'binary_desc',
+                                  'wh31': 'binary_desc',
+                                  'wh32': 'binary_desc',
+                                  'wh35': 'binary_desc',
+                                  'wh40': 'binary_desc',
+                                  'wh41': 'level_desc',
+                                  'wh51': 'binary_desc',
+                                  'wh55': 'level_desc',
+                                  'wh57': 'level_desc',
+                                  'wh65': 'binary_desc',
+                                  'wh68': 'voltage_desc',
+                                  'ws80': 'voltage_desc',
+                                  }
+            # Dictionary keyed by GW1000 response element containing various
+            # parameters for each response 'field'. Dictionary tuple format
+            # is (decode function name, size of data in bytes, GW1000 field name)
+            response_struct = {
+                b'\x01': ('decode_temp', 2, 'intemp'),
+                b'\x02': ('decode_temp', 2, 'outtemp'),
+                b'\x03': ('decode_temp', 2, 'dewpoint'),
+                b'\x04': ('decode_temp', 2, 'windchill'),
+                b'\x05': ('decode_temp', 2, 'heatindex'),
+                b'\x06': ('decode_humid', 1, 'inhumid'),
+                b'\x07': ('decode_humid', 1, 'outhumid'),
+                b'\x08': ('decode_press', 2, 'absbarometer'),
+                b'\x09': ('decode_press', 2, 'relbarometer'),
+                b'\x0A': ('decode_dir', 2, 'winddir'),
+                b'\x0B': ('decode_speed', 2, 'windspeed'),
+                b'\x0C': ('decode_speed', 2, 'gustspeed'),
+                b'\x0D': ('decode_rain', 2, 'rainevent'),
+                b'\x0E': ('decode_rainrate', 2, 'rainrate'),
+                b'\x0F': ('decode_rain', 2, 'rainhour'),
+                b'\x10': ('decode_rain', 2, 'rainday'),
+                b'\x11': ('decode_rain', 2, 'rainweek'),
+                b'\x12': ('decode_big_rain', 4, 'rainmonth'),
+                b'\x13': ('decode_big_rain', 4, 'rainyear'),
+                b'\x14': ('decode_big_rain', 4, 'raintotals'),
+                b'\x15': ('decode_light', 4, 'light'),
+                b'\x16': ('decode_uv', 2, 'uv'),
+                b'\x17': ('decode_uvi', 1, 'uvi'),
+                b'\x18': ('decode_datetime', 6, 'datetime'),
+                b'\x19': ('decode_speed', 2, 'daymaxwind'),
+                b'\x1A': ('decode_temp', 2, 'temp1'),
+                b'\x1B': ('decode_temp', 2, 'temp2'),
+                b'\x1C': ('decode_temp', 2, 'temp3'),
+                b'\x1D': ('decode_temp', 2, 'temp4'),
+                b'\x1E': ('decode_temp', 2, 'temp5'),
+                b'\x1F': ('decode_temp', 2, 'temp6'),
+                b'\x20': ('decode_temp', 2, 'temp7'),
+                b'\x21': ('decode_temp', 2, 'temp8'),
+                b'\x22': ('decode_humid', 1, 'humid1'),
+                b'\x23': ('decode_humid', 1, 'humid2'),
+                b'\x24': ('decode_humid', 1, 'humid3'),
+                b'\x25': ('decode_humid', 1, 'humid4'),
+                b'\x26': ('decode_humid', 1, 'humid5'),
+                b'\x27': ('decode_humid', 1, 'humid6'),
+                b'\x28': ('decode_humid', 1, 'humid7'),
+                b'\x29': ('decode_humid', 1, 'humid8'),
+                b'\x2A': ('decode_pm25', 2, 'pm251'),
+                b'\x2B': ('decode_temp', 2, 'soiltemp1'),
+                b'\x2C': ('decode_moist', 1, 'soilmoist1'),
+                b'\x2D': ('decode_temp', 2, 'soiltemp2'),
+                b'\x2E': ('decode_moist', 1, 'soilmoist2'),
+                b'\x2F': ('decode_temp', 2, 'soiltemp3'),
+                b'\x30': ('decode_moist', 1, 'soilmoist3'),
+                b'\x31': ('decode_temp', 2, 'soiltemp4'),
+                b'\x32': ('decode_moist', 1, 'soilmoist4'),
+                b'\x33': ('decode_temp', 2, 'soiltemp5'),
+                b'\x34': ('decode_moist', 1, 'soilmoist5'),
+                b'\x35': ('decode_temp', 2, 'soiltemp6'),
+                b'\x36': ('decode_moist', 1, 'soilmoist6'),
+                b'\x37': ('decode_temp', 2, 'soiltemp7'),
+                b'\x38': ('decode_moist', 1, 'soilmoist7'),
+                b'\x39': ('decode_temp', 2, 'soiltemp8'),
+                b'\x3A': ('decode_moist', 1, 'soilmoist8'),
+                b'\x3B': ('decode_temp', 2, 'soiltemp9'),
+                b'\x3C': ('decode_moist', 1, 'soilmoist9'),
+                b'\x3D': ('decode_temp', 2, 'soiltemp10'),
+                b'\x3E': ('decode_moist', 1, 'soilmoist10'),
+                b'\x3F': ('decode_temp', 2, 'soiltemp11'),
+                b'\x40': ('decode_moist', 1, 'soilmoist11'),
+                b'\x41': ('decode_temp', 2, 'soiltemp12'),
+                b'\x42': ('decode_moist', 1, 'soilmoist12'),
+                b'\x43': ('decode_temp', 2, 'soiltemp13'),
+                b'\x44': ('decode_moist', 1, 'soilmoist13'),
+                b'\x45': ('decode_temp', 2, 'soiltemp14'),
+                b'\x46': ('decode_moist', 1, 'soilmoist14'),
+                b'\x47': ('decode_temp', 2, 'soiltemp15'),
+                b'\x48': ('decode_moist', 1, 'soilmoist15'),
+                b'\x49': ('decode_temp', 2, 'soiltemp16'),
+                b'\x4A': ('decode_moist', 1, 'soilmoist16'),
+                b'\x4C': ('decode_batt', 16, 'lowbatt'),
+                b'\x4D': ('decode_pm25', 2, 'pm251_24h_avg'),
+                b'\x4E': ('decode_pm25', 2, 'pm252_24h_avg'),
+                b'\x4F': ('decode_pm25', 2, 'pm253_24h_avg'),
+                b'\x50': ('decode_pm25', 2, 'pm254_24h_avg'),
+                b'\x51': ('decode_pm25', 2, 'pm252'),
+                b'\x52': ('decode_pm25', 2, 'pm253'),
+                b'\x53': ('decode_pm25', 2, 'pm254'),
+                b'\x58': ('decode_leak', 1, 'leak1'),
+                b'\x59': ('decode_leak', 1, 'leak2'),
+                b'\x5A': ('decode_leak', 1, 'leak3'),
+                b'\x5B': ('decode_leak', 1, 'leak4'),
+                b'\x60': ('decode_distance', 1, 'lightningdist'),
+                b'\x61': ('decode_utc', 4, 'lightningdettime'),
+                b'\x62': ('decode_count', 4, 'lightningcount'),
+                # WH34 battery data is not obtained from live data rather it is
+                # obtained from sensor ID data
+                b'\x63': ('decode_wh34', 3, 'temp9'),
+                b'\x64': ('decode_wh34', 3, 'temp10'),
+                b'\x65': ('decode_wh34', 3, 'temp11'),
+                b'\x66': ('decode_wh34', 3, 'temp12'),
+                b'\x67': ('decode_wh34', 3, 'temp13'),
+                b'\x68': ('decode_wh34', 3, 'temp14'),
+                b'\x69': ('decode_wh34', 3, 'temp15'),
+                b'\x6A': ('decode_wh34', 3, 'temp16'),
+                # WH45 battery data is not obtained from live data rather it is
+                # obtained from sensor ID data
+                b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
+                                              'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
+                                              'co2', 'co2_24h_avg')),
+                b'\x71': (None, None, None),
+                b'\x72': ('decode_wet', 1, 'leafwet1'),
+                b'\x73': ('decode_wet', 1, 'leafwet2'),
+                b'\x74': ('decode_wet', 1, 'leafwet3'),
+                b'\x75': ('decode_wet', 1, 'leafwet4'),
+                b'\x76': ('decode_wet', 1, 'leafwet5'),
+                b'\x77': ('decode_wet', 1, 'leafwet6'),
+                b'\x78': ('decode_wet', 1, 'leafwet7'),
+                b'\x79': ('decode_wet', 1, 'leafwet8')
+            }
+
+            # tuple of field codes for rain related fields in the GW1000 live data
+            # so we can isolate these fields
+            rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
+                                b'\x11', b'\x12', b'\x13', b'\x14')
+            # tuple of field codes for wind related fields in the GW1000 live data
+            # so we can isolate these fields
+            wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
+
+            def __init__(self, raw_live_data=None, is_wh24=False, debug_rain=False, debug_wind=False):
+                # Tell our battery state decoding whether we have a WH24 or a WH65
+                # (they both share the same battery state bit). By default we are
+                # coded to use a WH65. But is there a WH24 connected?
+                if is_wh24:
+                    # We have a WH24. On startup we are set for a WH65 but if it is
+                    # a restart we will likely already be setup for a WH24. We need
+                    # to handle both cases.
+                    if 'wh24' not in self.multi_batt.keys():
+                        # we don't have a 'wh24' entry so create one, it's the same
+                        # as the 'wh65' entry
+                        self.multi_batt['wh24'] = self.multi_batt['wh65']
+                        # and pop off the no longer needed WH65 decode dict entry
+                        self.multi_batt.pop('wh65')
+                else:
+                    # We don't have a WH24 but a WH65. On startup we are set for a
+                    # WH65 but if it is a restart it is possible we have already
+                    # been setup for a WH24. We need to handle both cases.
+                    if 'wh65' not in self.multi_batt.keys():
+                        # we don't have a 'wh65' entry so create one, it's the same
+                        # as the 'wh24' entry
+                        self.multi_batt['wh65'] = self.multi_batt['wh24']
+                        # and pop off the no longer needed WH65 decode dict entry
+                        self.multi_batt.pop('wh24')
+                # get debug_rain and debug_wind
+                self.debug_rain = debug_rain
+                self.debug_wind = debug_wind
+                # initialise our parsed live data dict
+                self.live_data = dict()
+                self.set_live_data(raw_live_data)
+
+            def set_live_data(self, raw_live_data, timestamp=None):
+                """Parse the raw sensor ID data and store the results."""
+
+                # do we have any raw live data
+                if raw_live_data is not None and len(raw_live_data) > 0:
+                    # TODO. Is this the best may, maybe use _live_data and save at the end?
+                    # clear any existing live data
+                    self.live_data = dict()
+                    # determine the size of the live data, it's a big endian
+                    # short (two byte) integer at bytes 3 and 4
+                    data_size = struct.unpack(">H", raw_live_data[3:5])[0]
+                    # extract the actual live data
+                    live_data = raw_live_data[5:5 + data_size - 4]
+                    # log the actual live data as a sequence of bytes in hex
+                    if weewx.debug >= 3:
+                        logdbg("live sensor data is '%s'" % (bytes_to_hex(live_data), ))
+                    # initialise a counter
+                    index = 0
+                    # iterate over the data
+                    while index < len(live_data) - 1:
+                        try:
+                            decode_str, field_size, field = self.response_struct[live_data[index:index + 1]]
+                        except KeyError:
+                            # We struck a field 'address' we do not know how to
+                            # process. Ideally we would like to skip and move onto
+                            # the next field (if there is one) but the problem is
+                            # we do not know how long the data of this unknown
+                            # field is. We could go on guessing the field data size
+                            # by looking for the next field address but we won't
+                            # know if we do find a valid field address is it a
+                            # field address or data from this field? Of course this
+                            # could also be corrupt data (unlikely though as it was
+                            # decoded using a checksum). So all we can really do is
+                            # accept the data we have so far, log the issue and
+                            # ignore the remaining data.
+                            logerr("Unknown field address '%s' detected. "
+                                   "Remaining live sensor data ignored." % (bytes_to_hex(live_data[index:index + 1]),))
+                            break
+                        else:
+                            _field_data = getattr(self, decode_str)(live_data[index + 1:index + 1 + field_size],
+                                                                    field)
+                            if _field_data is not None:
+                                self.live_data.update(_field_data)
+                                if self.debug_rain and live_data[index:index + 1] in self.rain_field_codes:
+                                    loginf("set_live_data: raw rain data: field:%s and "
+                                           "data:%s decoded as %s=%s" % (bytes_to_hex(live_data[index:index + 1]),
+                                                                         bytes_to_hex(live_data[index + 1:index + 1 + field_size]),
+                                                                         field,
+                                                                         _field_data[field]))
+                                if self.debug_wind and live_data[index:index + 1] in self.wind_field_codes:
+                                    loginf("parse: raw wind data: field:%s and "
+                                           "data:%s decoded as %s=%s" % (live_data[index:index + 1],
+                                                                         bytes_to_hex(live_data[index + 1:index + 1 + field_size]),
+                                                                         field,
+                                                                         _field_data[field]))
+                            index += field_size + 1
+                    # if it does not exist add a datetime field with the current epoch timestamp
+                if 'datetime' not in self.live_data or 'datetime' in self.live_data and self.live_data['datetime'] is None:
+                    self.live_data['datetime'] = timestamp if timestamp is not None else int(time.time() + 0.5)
+
+            @staticmethod
+            def decode_temp(data, field=None):
+                """Decode temperature data.
+
+                Data is contained in a two byte big endian signed integer and
+                represents tenths of a degree.
+                """
+
+                if len(data) == 2:
+                    value = struct.unpack(">h", data)[0] / 10.0
+                else:
+                    value = None
+                if field is not None:
+                    return {field: value}
+                else:
+                    return value
+
+            @staticmethod
+            def decode_humid(data, field=None):
+                """Decode humidity data.
+
+                Data is contained in a single unsigned byte and represents whole units.
+                """
+
+                if len(data) == 1:
+                    value = struct.unpack("B", data)[0]
+                else:
+                    value = None
+                if field is not None:
+                    return {field: value}
+                else:
+                    return value
+
+            @staticmethod
+            def decode_press(data, field=None):
+                """Decode pressure data.
+
+                Data is contained in a two byte big endian integer and represents
+                tenths of a unit.
+                """
+
+                if len(data) == 2:
+                    value = struct.unpack(">H", data)[0] / 10.0
+                else:
+                    value = None
+                if field is not None:
+                    return {field: value}
+                else:
+                    return value
+
+            @staticmethod
+            def decode_dir(data, field=None):
+                """Decode direction data.
+
+                Data is contained in a two byte big endian integer and represents
+                whole degrees.
+                """
+
+                if len(data) == 2:
+                    value = struct.unpack(">H", data)[0]
+                else:
+                    value = None
+                if field is not None:
+                    return {field: value}
+                else:
+                    return value
+
+            @staticmethod
+            def decode_big_rain(data, field=None):
+                """Decode 4 byte rain data.
+
+                Data is contained in a four byte big endian integer and represents
+                tenths of a unit.
+                """
+
+                if len(data) == 4:
+                    value = struct.unpack(">L", data)[0] / 10.0
+                else:
+                    value = None
+                if field is not None:
+                    return {field: value}
+                else:
+                    return value
+
+            @staticmethod
+            def decode_datetime(data, field=None):
+                """Decode date-time data.
+
+                Unknown format but length is six bytes.
+                """
+
+                if len(data) == 6:
+                    value = struct.unpack("BBBBBB", data)
+                else:
+                    value = None
+                if field is not None:
+                    return {field: value}
+                else:
+                    return value
+
+            @staticmethod
+            def decode_distance(data, field=None):
+                """Decode lightning distance.
+
+                Data is contained in a single byte integer and represents a value
+                from 0 to 40km.
+                """
+
+                if len(data) == 1:
+                    value = struct.unpack("B", data)[0]
+                    value = value if value <= 40 else None
+                else:
+                    value = None
+                if field is not None:
+                    return {field: value}
+                else:
+                    return value
+
+            @staticmethod
+            def decode_utc(data, field=None):
+                """Decode UTC time.
+
+                The GW1000 API claims to provide 'UTC time' as a 4 byte big endian
+                integer. The 4 byte integer is a unix epoch timestamp; however,
+                the timestamp is offset by the stations timezone. So for a station
+                in the +10 hour timezone, the timestamp returned is the present
+                epoch timestamp plus 10 * 3600 seconds.
+
+                When decoded in localtime the decoded date-time is off by the
+                station time zone, when decoded as GMT the date and time figures
+                are correct but the timezone is incorrect.
+
+                In any case decode the 4 byte big endian integer as is and any
+                further use of this timestamp needs to take the above time zone
+                offset into account when using the timestamp.
+                """
+
+                if len(data) == 4:
+                    # unpack the 4 byte int
+                    value = struct.unpack(">L", data)[0]
+                    # when processing the last lightning strike time if the value
+                    # is 0xFFFFFFFF it means we have never seen a strike so return
+                    # None
+                    value = value if value != 0xFFFFFFFF else None
+                else:
+                    value = None
+                if field is not None:
+                    return {field: value}
+                else:
+                    return value
+
+            @staticmethod
+            def decode_count(data, field=None):
+                """Decode lightning count.
+
+                Count is an integer stored in a 4 byte big endian integer."""
+
+                if len(data) == 4:
+                    value = struct.unpack(">L", data)[0]
+                else:
+                    value = None
+                if field is not None:
+                    return {field: value}
+                else:
+                    return value
+
+            # alias' for other decodes
+            decode_speed = decode_press
+            decode_rain = decode_press
+            decode_rainrate = decode_press
+            decode_light = decode_big_rain
+            decode_uv = decode_press
+            decode_uvi = decode_humid
+            decode_moist = decode_humid
+            decode_pm25 = decode_press
+            decode_leak = decode_humid
+            decode_pm10 = decode_press
+            decode_co2 = decode_dir
+            decode_wet = decode_humid
+
+            def decode_wh34(self, data, field=None):
+                """Decode WH34 sensor data.
+
+                Data consists of three bytes:
+
+                Byte    Field               Comments
+                1-2     temperature         standard Ecowitt temperature data, two
+                                            byte big endian signed integer
+                                            representing tenths of a degree
+                3       battery voltage     0.02 * value Volts
+                """
+
+                if len(data) == 3 and field is not None:
+                    results = dict()
+                    results[field] = self.decode_temp(data[0:2])
+                    # we could decode the battery voltage but we will be obtaining
+                    # battery voltage data from the sensor IDs in a later step so
+                    # we can skip it here
+                    return results
+                return {}
+
+            def decode_wh45(self, data, fields=None):
+                """Decode WH45 sensor data.
+
+                WH45 sensor data includes TH sensor values, CO2/PM2.5/PM10 sensor
+                values and 24 hour aggregates and battery state data in 16 bytes.
+
+                The 16 bytes of WH45 sensor data is allocated as follows:
+                Byte(s) #      Data               Format          Comments
+                bytes   1-2    temperature        short           C x10
+                        3      humidity           unsigned byte   percent
+                        4-5    PM10               unsigned short  ug/m3 x10
+                        6-7    PM10 24hour avg    unsigned short  ug/m3 x10
+                        8-9    PM2.5              unsigned short  ug/m3 x10
+                        10-11  PM2.5 24 hour avg  unsigned short  ug/m3 x10
+                        12-13  CO2                unsigned short  ppm
+                        14-15  CO2 24 our avg     unsigned short  ppm
+                        16     battery state      unsigned byte   0-5 <=1 is low
+                """
+
+                if len(data) == 16 and fields is not None:
+                    results = dict()
+                    results[fields[0]] = self.decode_temp(data[0:2])
+                    results[fields[1]] = self.decode_humid(data[2:3])
+                    results[fields[2]] = self.decode_pm10(data[3:5])
+                    results[fields[3]] = self.decode_pm10(data[5:7])
+                    results[fields[4]] = self.decode_pm25(data[7:9])
+                    results[fields[5]] = self.decode_pm25(data[9:11])
+                    results[fields[6]] = self.decode_co2(data[11:13])
+                    results[fields[7]] = self.decode_co2(data[13:15])
+                    # we could decode the battery state but we will be obtaining
+                    # battery state data from the sensor IDs in a later step so
+                    # we can skip it here
+                    return results
+                return {}
+
+            @staticmethod
+            def decode_batt(data, field=None):
+                """Decode battery status data.
+
+                GW1000 firmware version 1.6.4 and earlier supported 16 bytes of
+                battery state data at response field x4C for the following
+                sensors:
+                    WH24, WH25, WH26(WH32), WH31 ch1-8, WH40, WH41/WH43 ch1-4,
+                    WH51 ch1-8, WH55 ch1-4, WH57, WH68 and WS80
+
+                As of firmware version 1.6.5 the 16 bytes of battery state data is
+                no longer returned at all. CMD_READ_SENSOR_ID_NEW or
+                CMD_READ_SENSOR_ID must be used to obtain battery state information
+                for connected sensors. The decode_batt() method has been retained
+                to support devices using firmware version 1.6.4 and earlier.
+
+                Since the GW1000 driver now obtains battery state information via
+                CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID only the decode_batt()
+                method now returns None so that firmware versions before 1.6.5
+                continue to be supported.
+                """
+
+                return None
 
 
 # ============================================================================
