@@ -2516,9 +2516,10 @@ class Station(object):
     2.  send a command to the GW1000 API
     3.  receive a response from the GW1000 API
     4.  verify the response as valid
+    5.  parse the response data payload
 
-    A Station object needs an ip address and port as well as a network
-    broadcast address and port.
+    A Station object needs an ip address and port or a network broadcast
+    address and port.
     """
 
     # GW1000 API commands
@@ -2574,11 +2575,10 @@ class Station(object):
                  show_battery=False,
                  debug_rain=False, debug_wind=False):
 
-        # get a parser object to parse any data from the station
+        # get a parser object to parse any API response data from the GW1000
         self.parser = Parser(debug_rain=debug_rain,
                              debug_wind=debug_wind,
                              show_battery=show_battery)
-
         # network broadcast address
         self.broadcast_address = broadcast_address if broadcast_address is not None else default_broadcast_address
         # network broadcast port
@@ -2619,14 +2619,15 @@ class Station(object):
                         break
                     else:
                         # did not discover any GW1000 so log it
-                        logdbg("Failed attempt %d to detect GW1000 ip address and/or port" % (attempt + 1,))
+                        logdbg("Failed attempt %d to detect GW1000 IP address and/or port" % (attempt + 1,))
                         # do we try again or raise an exception
                         if attempt < max_tries - 1:
                             # we still have at least one more try left so sleep
                             # and try again
                             time.sleep(retry_wait)
                         else:
-                            # we've used all our tries, log it and raise an exception
+                            # we've used all our tries, log it and raise an
+                            # exception
                             _msg = "Failed to detect GW1000 ip address and/or " \
                                    "port after %d attempts" % (attempt + 1,)
                             logerr(_msg)
@@ -2640,7 +2641,8 @@ class Station(object):
 
         # start off logging failures
         self.log_failures = True
-        # get my GW1000 MAC address to use later if we have to rediscover
+        # keep a record of my GW1000 MAC address to use later if we have to
+        # rediscover
         if mac is not None:
             self.mac = mac
         else:
@@ -2724,12 +2726,15 @@ class Station(object):
     def ecowitt_net_params(self):
         """Get GW1000 Ecowitt.net parameters.
 
-        Sends the command to obtain the GW1000 Ecowitt.net parameters to
-        the API with retries. If the GW1000 cannot be contacted a
-        GW1000IOError will have been raised by send_cmd_with_retries()
-        which will be passed through by get_ecowitt_net_params(). Any code
-        calling get_ecowitt_net_params() should be prepared to handle this
-        exception.
+        Sends a CMD_READ_ECOWITT API command to obtain the GW1000 Ecowitt.net
+        parameters. The response is parsed and a dict containing the parameters
+        returned. The dict is structured as follows:
+
+        interval: the Ecowitt.net upload interval in minutes (integer)
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by ecowitt_net_params. Any code calling
+        ecowitt_net_params should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_READ_ECOWITT')
@@ -2739,13 +2744,19 @@ class Station(object):
     def wunderground_params(self):
         """Get GW1000 Weather Underground parameters.
 
-        Sends the command to obtain the GW1000 Weather Underground
-        parameters to the API with retries. If the GW1000 cannot be
-        contacted a GW1000IOError will have been raised by
-        send_cmd_with_retries() which will be passed through by
-        get_wunderground_params(). Any code calling
-        get_wunderground_params() should be prepared to handle this
-        exception.
+        Sends a CMD_READ_WUNDERGROUND API command to obtain the GW1000 Weather
+        Underground parameters. The response is parsed and a dict containing
+        the parameters returned. The dict is structured as follows:
+
+        id:       the Weather Underground station ID (string)
+        password: the Weather Underground station password (string)
+        fix:      field specified as 'fix' in the API documentation. Purpose
+                  and format are not specified. Returned as an integer in range
+                  0-255 inclusive.
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by wunderground_params. Any code calling
+        wunderground_params should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_READ_WUNDERGROUND')
@@ -2755,12 +2766,19 @@ class Station(object):
     def weathercloud_params(self):
         """Get GW1000 Weathercloud parameters.
 
-        Sends the command to obtain the GW1000 Weathercloud parameters to
-        the API with retries. If the GW1000 cannot be contacted a
-        GW1000IOError will have been raised by send_cmd_with_retries()
-        which will be passed through by get_weathercloud_params(). Any code
-        calling get_weathercloud_params() should be prepared to handle this
-        exception.
+        Sends a CMD_READ_WEATHERCLOUD API command to obtain the GW1000
+        Weathercloud parameters. The response is parsed and a dict containing
+        the parameters returned. The dict is structured as follows:
+
+        id:  the Weathercloud station ID (string)
+        key: the Weathercloud station key (string)
+        fix: field specified as 'fix' in the API documentation. Purpose and
+             format are not specified. Returned as an integer in range 0-255
+             inclusive.
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by weathercloud_params. Any code calling
+        weathercloud_params should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_READ_WEATHERCLOUD')
@@ -2770,12 +2788,21 @@ class Station(object):
     def wow_params(self):
         """Get GW1000 Weather Observations Website parameters.
 
-        Sends the command to obtain the GW1000 Weather Observations Website
-        parameters to the API with retries. If the GW1000 cannot be
-        contacted a GW1000IOError will have been raised by
-        send_cmd_with_retries() which will be passed through by
-        get_wow_params(). Any code calling get_wow_params() should be
-        prepared to handle this exception.
+        Sends a CMD_READ_WOW API command to obtain the GW1000 Weather
+        Observations Website (WOW) parameters. The response is parsed and a
+        dict containing the parameters returned. The dict is structured as
+        follows:
+
+        id:          the WOW station ID (string)
+        password:    the WOW station password (string)
+        station_num: the WOW station number (string)
+        fix:         field specified as 'fix' in the API documentation. Purpose
+                     and format are not specified. Returned as an integer in
+                     range 0-255 inclusive.
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by wow_params. Any code calling wow_params
+        should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_READ_WOW')
@@ -2785,12 +2812,24 @@ class Station(object):
     def custom_params(self):
         """Get GW1000 custom server parameters.
 
-        Sends the command to obtain the GW1000 custom server parameters to
-        the API with retries. If the GW1000 cannot be contacted a
-        GW1000IOError will have been raised by send_cmd_with_retries()
-        which will be passed through by get_custom_params(). Any code
-        calling get_custom_params() should be prepared to handle this
-        exception.
+        Sends a CMD_READ_CUSTOMIZED API command to obtain the GW1000 custom
+        server parameters. The response is parsed and a dict containing the
+        parameters returned. The dict is structured as follows:
+
+        id:       the custom server ID (string)
+        password: the custom server password (string)
+        server    the custom server address (string)
+        port:     the custom server port number (integer)
+        # TODO. Confirm this is minutes
+        interval: the custom server upload interval in minutes (integer)
+        type:     the upload format being used, Ecowitt format (0) or Weather
+                  Underground format (1) (integer)
+        active:   whether the custom server upload is enabled (1) or
+                  disabled (0) (integer)
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by custom_params. Any code calling
+        custom_params should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_READ_CUSTOMIZED')
@@ -2800,11 +2839,17 @@ class Station(object):
     def usr_path(self):
         """Get GW1000 user defined custom path.
 
-        Sends the command to obtain the GW1000 user defined custom path to
-        the API with retries. If the GW1000 cannot be contacted a
-        GW1000IOError will have been raised by send_cmd_with_retries()
-        which will be passed through by get_usr_path(). Any code calling
-        get_usr_path() should be prepared to handle this exception.
+        Sends a CMD_READ_USRPATH API command to obtain the GW1000 user defined
+        path parameters. The response is parsed and a dict containing the
+        parameters returned. The dict is structured as follows:
+
+        ecowitt-path: the path used when uploading Ecowitt format data (string)
+        wu_path:      the path used when uploading Weather Underground format
+                      data (string)
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by usr_path. Any code calling usr_path
+        should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_READ_USRPATH')
