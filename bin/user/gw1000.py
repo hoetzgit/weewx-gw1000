@@ -506,7 +506,6 @@ the WeeWX daemon:
 # TODO. Need to know date-time data format for decode date_time()
 # TODO. Need to implement debug_wind reporting
 # TODO. Review queue dwell times
-# TODO. Move decoding of any response from GW1000 API to class Parser()
 
 # Python imports
 from __future__ import absolute_import
@@ -5828,6 +5827,7 @@ class DirectGw1000(object):
                 found = False
                 gw1000_found = 0
                 for device in sorted_list:
+                    # TODO. Need to add SSID here somehow
                     if device['ip_address'] is not None and device['port'] is not None:
                         print("GW1000 discovered at IP address %s on port %d" % (device['ip_address'],
                                                                                  device['port']))
