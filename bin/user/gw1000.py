@@ -2343,7 +2343,7 @@ class Gw1000Collector(Collector):
     def rain_data(self):
         """Obtain GW1000 rain data."""
 
-        return self.station.raindata
+        return self.station.rain_data
 
     @property
     def mulch_offset(self):
@@ -2728,9 +2728,9 @@ class Station(object):
 
         Sends a CMD_READ_ECOWITT API command to obtain the GW1000 Ecowitt.net
         parameters. The response is parsed and a dict containing the parameters
-        returned. The dict is structured as follows:
+        returned. The dict is keyed as follows:
 
-        interval: the Ecowitt.net upload interval in minutes (integer)
+        'interval': the Ecowitt.net upload interval in minutes (integer)
 
         If the GW1000 cannot be contacted a GW1000IOError will have been raised
         and will be passed through by ecowitt_net_params. Any code calling
@@ -2746,13 +2746,13 @@ class Station(object):
 
         Sends a CMD_READ_WUNDERGROUND API command to obtain the GW1000 Weather
         Underground parameters. The response is parsed and a dict containing
-        the parameters returned. The dict is structured as follows:
+        the parameters returned. The dict is keyed as follows:
 
-        id:       the Weather Underground station ID (string)
-        password: the Weather Underground station password (string)
-        fix:      field specified as 'fix' in the API documentation. Purpose
-                  and format are not specified. Returned as an integer in range
-                  0-255 inclusive.
+        'id':       the Weather Underground station ID (string)
+        'password': the Weather Underground station password (string)
+        'fix':      field specified as 'fix' in the API documentation. Purpose
+                    and format are not specified. Returned as an integer in
+                    range 0-255 inclusive.
 
         If the GW1000 cannot be contacted a GW1000IOError will have been raised
         and will be passed through by wunderground_params. Any code calling
@@ -2768,13 +2768,13 @@ class Station(object):
 
         Sends a CMD_READ_WEATHERCLOUD API command to obtain the GW1000
         Weathercloud parameters. The response is parsed and a dict containing
-        the parameters returned. The dict is structured as follows:
+        the parameters returned. The dict is keyed as follows:
 
-        id:  the Weathercloud station ID (string)
-        key: the Weathercloud station key (string)
-        fix: field specified as 'fix' in the API documentation. Purpose and
-             format are not specified. Returned as an integer in range 0-255
-             inclusive.
+        'id':  the Weathercloud station ID (string)
+        'key': the Weathercloud station key (string)
+        'fix': field specified as 'fix' in the API documentation. Purpose and
+               format are not specified. Returned as an integer in range 0-255
+               inclusive.
 
         If the GW1000 cannot be contacted a GW1000IOError will have been raised
         and will be passed through by weathercloud_params. Any code calling
@@ -2790,15 +2790,14 @@ class Station(object):
 
         Sends a CMD_READ_WOW API command to obtain the GW1000 Weather
         Observations Website (WOW) parameters. The response is parsed and a
-        dict containing the parameters returned. The dict is structured as
-        follows:
+        dict containing the parameters returned. The dict is keyed as follows:
 
-        id:          the WOW station ID (string)
-        password:    the WOW station password (string)
-        station_num: the WOW station number (string)
-        fix:         field specified as 'fix' in the API documentation. Purpose
-                     and format are not specified. Returned as an integer in
-                     range 0-255 inclusive.
+        'id':          the WOW station ID (string)
+        'password':    the WOW station password (string)
+        'station_num': the WOW station number (string)
+        'fix':         field specified as 'fix' in the API documentation.
+                       Purpose and format are not specified. Returned as an
+                       integer in range 0-255 inclusive.
 
         If the GW1000 cannot be contacted a GW1000IOError will have been raised
         and will be passed through by wow_params. Any code calling wow_params
@@ -2814,18 +2813,18 @@ class Station(object):
 
         Sends a CMD_READ_CUSTOMIZED API command to obtain the GW1000 custom
         server parameters. The response is parsed and a dict containing the
-        parameters returned. The dict is structured as follows:
+        parameters returned. The dict is keyed as follows:
 
-        id:       the custom server ID (string)
-        password: the custom server password (string)
-        server    the custom server address (string)
-        port:     the custom server port number (integer)
+        'id':       the custom server ID (string)
+        'password': the custom server password (string)
+        'server':   the custom server address (string)
+        'port':     the custom server port number (integer)
         # TODO. Confirm this is minutes
-        interval: the custom server upload interval in minutes (integer)
-        type:     the upload format being used, Ecowitt format (0) or Weather
-                  Underground format (1) (integer)
-        active:   whether the custom server upload is enabled (1) or
-                  disabled (0) (integer)
+        'interval': the custom server upload interval in minutes (integer)
+        'type':     the upload format being used, Ecowitt format (0) or Weather
+                    Underground format (1) (integer)
+        'active':   whether the custom server upload is enabled (1) or
+                    disabled (0) (integer)
 
         If the GW1000 cannot be contacted a GW1000IOError will have been raised
         and will be passed through by custom_params. Any code calling
@@ -2841,11 +2840,12 @@ class Station(object):
 
         Sends a CMD_READ_USRPATH API command to obtain the GW1000 user defined
         path parameters. The response is parsed and a dict containing the
-        parameters returned. The dict is structured as follows:
+        parameters returned. The dict is keyed as follows:
 
-        ecowitt-path: the path used when uploading Ecowitt format data (string)
-        wu_path:      the path used when uploading Weather Underground format
-                      data (string)
+        'ecowitt-path': the path used when uploading Ecowitt format data
+                        (string)
+        'wu_path':      the path used when uploading Weather Underground format
+                        data (string)
 
         If the GW1000 cannot be contacted a GW1000IOError will have been raised
         and will be passed through by usr_path. Any code calling usr_path
@@ -2859,12 +2859,21 @@ class Station(object):
     def soil_calibration(self):
         """Get soil moisture sensor calibration data.
 
-        Sends the command to obtain the soil moisture sensor calibration
-        data to the API with retries. If the GW1000 cannot be contacted a
-        GW1000IOError will have been raised by send_cmd_with_retries()
-        which will be passed through by get_soil_calibration(). Any code
-        calling get_soil_calibration() should be prepared to handle this
-        exception.
+        Sends a CMD_GET_SOILHUMIAD API command to obtain the GW1000 soil
+        moisture calibration parameters. The response is parsed and a dict
+        containing the parameters returned. The dict is keyed by channel number
+        (integer) and each channel entry is structured as follows:
+
+        # TODO. Need to verify these meanings
+        'humidity':  current soil moisture reading
+        'ad':
+        'ad_select':
+        'adj_min':
+        'adj_max':
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by soil_calibration. Any code calling
+        soil_calibration should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_GET_SOILHUMIAD')
@@ -2874,12 +2883,18 @@ class Station(object):
     def mulch_offset(self):
         """Get multi-channel temperature and humidity offset data.
 
-        Sends the command to obtain the multi-channel temperature and
-        humidity offset data to the API with retries. If the GW1000 cannot
-        be contacted a GW1000IOError will have been raised by
-        send_cmd_with_retries() which will be passed through by
-        get_mulch_offset(). Any code calling get_mulch_offset() should be
-        prepared to handle this exception.
+        Sends a CMD_GET_MulCH_OFFSET API command to obtain the GW1000 multi-
+        channel temperature and humidity offset calibration parameters. The
+        response is parsed and a dict containing the parameters returned. The
+        dict is keyed by channel number (integer) and each channel entry is
+        structured as follows:
+
+        'hum':  current humidity offset calibration value (integer)
+        'temp': current temperature offset calibration value (float)
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by mulch_offset. Any code calling
+        mulch_offset should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_GET_MulCH_OFFSET')
@@ -2889,11 +2904,15 @@ class Station(object):
     def pm25_offset(self):
         """Get PM2.5 offset data.
 
-        Sends the command to obtain the PM2.5 sensor offset data to the API
-        with retries. If the GW1000 cannot be contacted a GW1000IOError
-        will have been raised by send_cmd_with_retries() which will be
-        passed through by get_pm25_offset(). Any code calling
-        get_pm25_offset() should be prepared to handle this exception.
+        Sends a CMD_GET_PM25_OFFSET API command to obtain the GW1000 multi-
+        channel PM2.5 offset calibration parameters. The response is
+        parsed and a dict containing the parameters returned. The dict is
+        keyed by channel number (integer) and each channel entry contains the
+        PM2.5 offset calibration value (float).
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by pm25_offset. Any code calling pm25_offset
+        should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_GET_PM25_OFFSET')
@@ -2903,11 +2922,19 @@ class Station(object):
     def co2_offset(self):
         """Get WH45 CO2, PM10 and PM2.5 offset data.
 
-        Sends the command to obtain the WH45 CO2, PM10 and PM2.5 sensor
-        offset data to the API with retries. If the GW1000 cannot be
-        contacted a GW1000IOError will have been raised by
-        send_cmd_with_retries() which will be passed through by
-        get_offset_calibration(). Any code calling get_offset_calibration()
+        # TODO. Need to word this para correctly
+        Sends a CMD_GET_CO2_OFFSET API command to obtain the GW1000 ???
+        offset calibration parameters. The
+        response is parsed and a dict containing the parameters returned. The
+        dict is keyed as
+        follows:
+
+        'co2':  CO2 offset calibration value (integer)
+        'pm25': PM2.5 offset calibration value (float)
+        'pm10': PM10 offset calibration value (float)
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by co2_offset. Any code calling co2_offset
         should be prepared to handle this exception.
         """
 
@@ -2918,10 +2945,14 @@ class Station(object):
     def mac_address(self):
         """Get GW1000 MAC address.
 
-        Sends the command to obtain the GW1000 MAC address to the API with
-        retries. If the GW1000 cannot be contacted a GW1000IOError will
-        have been raised by send_cmd_with_retries() which will be passed
-        through by get_mac_address(). Any code calling get_mac_address()
+        Sends a CMD_READ_STATION_MAC API command to obtain the GW1000 MAC
+        address. The response is parsed and a dict containing the MAC address
+        returned. The dict is keyed as follows:
+
+        'mac': the GW1000 MAC address (string)
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by mac_address. Any code calling mac_address
         should be prepared to handle this exception.
         """
 
@@ -2931,6 +2962,7 @@ class Station(object):
     def get_livedata(self):
         """Get GW1000 live data.
 
+        # TODO. Need to re-comment this
         Sends the command to obtain live data from the GW1000 to the API
         with retries. If the GW1000 cannot be contacted re-discovery is
         attempted. If rediscovery is successful the command is tried again
@@ -2961,26 +2993,43 @@ class Station(object):
     def system_params(self):
         """Read GW1000 system parameters.
 
-        Sends the command to obtain system parameters from the GW1000 to
-        the API with retries. If the GW1000 cannot be contacted a
-        GW1000IOError will have been raised by send_cmd_with_retries()
-        which will be passed through by get_system_params(). Any code
-        calling get_system_params() should be prepared to handle this
-        exception.
+        Sends a CMD_READ_SSSS API command to obtain the GW1000 system
+        parameters. The response is parsed and a dict containing the GW1000
+        system parameters returned. The dict is keyed as follows:
+
+        'frequency':      GW1000 frequency band (0=433MHz, 1=868MHZ, 2=915MHz,
+                          3=920MHz) (integer)
+        'sensor_type':    sensor type (0=WH24, 1=WH65) (integer)
+        # TODO. Better description for UTC
+        'utc':            UTC (integer)
+        'timezone_index': local timezone index (integer)
+        'dst_status':     DST status (0=False, not 0=True) (integer)
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by system_params. Any code calling
+        system_params should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_READ_SSSS')
         return self.parser.parse('CMD_READ_SSSS', raw_data)
 
     @property
-    def raindata(self):
+    def rain_data(self):
         """Get GW1000 rain data.
 
-        Sends the command to obtain rain data from the GW1000 to the API
-        with retries. If the GW1000 cannot be contacted a GW1000IOError will
-        have been raised by send_cmd_with_retries() which will be passed
-        through by get_raindata(). Any code calling get_raindata() should
-        be prepared to handle this exception.
+        Sends a CMD_READ_RAINDATA API command to obtain the GW1000 rainfall
+        data. The response is parsed and a dict containing the GW1000 rainfall
+        data returned. The dict is keyed as follows:
+
+        'rain_rate':  current rain rate (float)
+        'rain_day':   today's cumulative rainfall (float)
+        'rain_week':  this week's cumulative rainfall (float)
+        'rain_month': this month's cumulative rainfall (float)
+        'rain_year':  this year's cumualtive rainfall (float)
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by rain_data. Any code calling rain_data
+        should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_READ_RAINDATA')
@@ -2990,12 +3039,22 @@ class Station(object):
     def calibration_coefficient(self):
         """Get calibration coefficient data.
 
-        Sends the command to obtain the calibration coefficient data to the
-        API with retries. If the GW1000 cannot be contacted a GW1000IOError
-        will have been raised by send_cmd_with_retries() which will be
-        passed through by get_calibration_coefficient(). Any code calling
-        get_calibration_coefficient() should be prepared to handle this
-        exception.
+        Sends a CMD_READ_GAIN API command to obtain the GW1000 calibration
+        coefficient data. The response is parsed and a dict containing the
+        GW1000 calibration coefficient data returned. The dict is keyed as
+        follows:
+
+        # TODO. Check, is it luminosity or luminance?
+        'fixed': a fixed value of 126.7 (believed to be used as the luminosity
+                 to solar radiation multiplier) (float)
+        'uv':    UV gain (float)
+        'solar': solar radiation gain (float)
+        'wind':  wind speed gain (float)
+        'rain':  rain gain (float)
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by calibration_coefficient. Any code calling
+        calibration_coefficient should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_READ_GAIN')
@@ -3005,12 +3064,21 @@ class Station(object):
     def offset_calibration(self):
         """Get offset calibration data.
 
-        Sends the command to obtain the offset calibration data to the API
-        with retries. If the GW1000 cannot be contacted a GW1000IOError
-        will have been raised by send_cmd_with_retries() which will be
-        passed through by get_offset_calibration(). Any code calling
-        get_offset_calibration() should be prepared to handle this
-        exception.
+        Sends a CMD_READ_CALIBRATION API command to obtain the GW1000 offset
+        calibration data. The response is parsed and a dict containing the
+        GW1000 offset calibration data returned. The dict is keyed as follows:
+
+        'intemp':  inside temperature offset (float)
+        'inhum':   inside humidity offset (integer)
+        'abs':     absolute pressure offset (float)
+        'rel':     relative pressure offset (float)
+        'outtemp': outside temperature offset (float)
+        'outhum':  outside humidity offset (integer)
+        'dir':     wind direction offset (integer)
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by offset_calibration. Any code calling
+        offset_calibration should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_READ_CALIBRATION')
