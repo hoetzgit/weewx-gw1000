@@ -2819,8 +2819,7 @@ class Station(object):
         'password': the custom server password (string)
         'server':   the custom server address (string)
         'port':     the custom server port number (integer)
-        # TODO. Confirm this is minutes
-        'interval': the custom server upload interval in minutes (integer)
+        'interval': the custom server upload interval in seconds (integer)
         'type':     the upload format being used, Ecowitt format (0) or Weather
                     Underground format (1) (integer)
         'active':   whether the custom server upload is enabled (1) or
@@ -2864,12 +2863,11 @@ class Station(object):
         containing the parameters returned. The dict is keyed by channel number
         (integer) and each channel entry is structured as follows:
 
-        # TODO. Need to verify these meanings
-        'humidity':  current soil moisture reading
-        'ad':
-        'ad_select':
-        'adj_min':
-        'adj_max':
+        'humidity':          current soil moisture reading (integer)
+        'ad':                current AD value (integer)
+        'ad_select':         custom AD selector (integer)
+        'adjusted_min_ad':   0% custom AD value (integer)
+        'adjusted_max_ad':   100% custom AD value (integer)
 
         If the GW1000 cannot be contacted a GW1000IOError will have been raised
         and will be passed through by soil_calibration. Any code calling
@@ -2922,12 +2920,9 @@ class Station(object):
     def co2_offset(self):
         """Get WH45 CO2, PM10 and PM2.5 offset data.
 
-        # TODO. Need to word this para correctly
-        Sends a CMD_GET_CO2_OFFSET API command to obtain the GW1000 ???
-        offset calibration parameters. The
-        response is parsed and a dict containing the parameters returned. The
-        dict is keyed as
-        follows:
+        Sends a CMD_GET_CO2_OFFSET API command to obtain the WH45 CO2, PM10 and
+        PM2.5 offset calibration parameters. The response is parsed and a dict
+        containing the parameters returned. The dict is keyed as follows:
 
         'co2':  CO2 offset calibration value (integer)
         'pm25': PM2.5 offset calibration value (float)
@@ -3044,7 +3039,6 @@ class Station(object):
         GW1000 calibration coefficient data returned. The dict is keyed as
         follows:
 
-        # TODO. Check, is it luminosity or luminance?
         'fixed': a fixed value of 126.7 (believed to be used as the luminosity
                  to solar radiation multiplier) (float)
         'uv':    UV gain (float)
@@ -3116,11 +3110,13 @@ class Station(object):
     def firmware_version(self):
         """Get GW1000 firmware version.
 
-        Sends the command to obtain GW1000 firmware version to the API with
-        retries. If the GW1000 cannot be contacted a GW1000IOError will
-        have been raised by send_cmd_with_retries() which will be passed
-        through by get_firmware_version(). Any code calling
-        get_firmware_version() should be prepared to handle this exception.
+        Sends a CMD_READ_FIRMWARE_VERSION API command to obtain the GW1000
+        firmware version. The response is parsed and a string representing the
+        GW1000 firmware version returned.
+
+        If the GW1000 cannot be contacted a GW1000IOError will have been raised
+        and will be passed through by firmware_version. Any code calling
+        firmware_version should be prepared to handle this exception.
         """
 
         raw_data = self.send_cmd_with_retries('CMD_READ_FIRMWARE_VERSION')
@@ -3130,8 +3126,8 @@ class Station(object):
         """Send a command to the GW1000 API with retries and return the
         response.
 
-        Send a command to the GW1000 and obtain the response. If the
-        the response is valid return the response. If the response is
+        Send a command to the GW1000 and obtain the response. Check the
+        response is valid and if so return the response. If the response is
         invalid an appropriate exception is raised and the command resent
         up to self.max_tries times after which the value None is returned.
 
@@ -3161,7 +3157,9 @@ class Station(object):
                 if self.log_failures:
                     logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
             else:
-                # check the response is valid
+                # check the response is valid, if it's invalid either an
+                # InvalidChecksum or InvalidApiResponse exception will be
+                # raised
                 try:
                     self.check_response(response, self.commands[cmd])
                 except (InvalidChecksum, InvalidApiResponse) as e:
@@ -3213,7 +3211,7 @@ class Station(object):
         Returns an API command packet as a bytestring.
         """
 
-        # calculate size
+        # calculate the size of the command code and payload
         try:
             size = len(self.commands[cmd]) + 1 + len(payload) + 1
         except KeyError:
@@ -3229,7 +3227,7 @@ class Station(object):
         """Send a command to the GW1000 API and return the response.
 
         Send a command to the GW1000 and return the response. Socket
-        related errors are trapped and raised, code calling send_cmd should
+        related errors are trapped and raised; code calling send_cmd should
         be prepared to handle such exceptions.
 
         cmd: A valid GW1000 API command
@@ -3241,17 +3239,25 @@ class Station(object):
         socket_obj = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         socket_obj.settimeout(self.socket_timeout)
         try:
+            # connect to the GW1000
             socket_obj.connect((self.ip_address, self.port))
+            # if required log details of the packet we are sending
             if weewx.debug >= 3:
                 logdbg("Sending packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
                                                            self.ip_address.decode(),
                                                            self.port))
+            # send the packet
             socket_obj.sendall(packet)
+            # receive the response, use 1024 to make sure we capture the entire
+            # response in one go
             response = socket_obj.recv(1024)
+            # if required log the response
             if weewx.debug >= 3:
                 logdbg("Received response '%s'" % (bytes_to_hex(response),))
+            # return the response
             return response
         except socket.error:
+            # a socket error occurred, raise it
             raise
 
     def check_response(self, response, cmd_code):
@@ -3682,8 +3688,8 @@ class Parser(object):
                 min_ad = six.byte2int(data[index + 5])
             except TypeError:
                 min_ad = data[index + 5]
-            data_dict[channel]['adj_min'] = min_ad
-            data_dict[channel]['adj_max'] = struct.unpack(">h", data[index + 6:index + 8])[0]
+            data_dict[channel]['adjusted_min_ad'] = min_ad
+            data_dict[channel]['adjusted_max_ad'] = struct.unpack(">h", data[index + 6:index + 8])[0]
             index += 8
         return data_dict
 
@@ -5427,9 +5433,11 @@ class DirectGw1000(object):
                     # app displays channels starting at 1, so add 1 to our
                     # channel number
                     print("Channel %d (%d%%)" % (channel+1, channel_dict['humidity']))
+                    _customise_str = 'Disabled' if channel_dict['customise'] == 0 else 'Enabled'
+                    print("%12s: %s" % ("Customise", _customise_str))
                     print("%12s: %d" % ("Now AD", channel_dict['ad']))
-                    print("%12s: %d" % ("0% AD", channel_dict['adj_min']))
-                    print("%12s: %d" % ("100% AD", channel_dict['adj_max']))
+                    print("%12s: %d" % ("0% AD", channel_dict['adjusted_min_ad']))
+                    print("%12s: %d" % ("100% AD", channel_dict['adjusted_max_ad']))
             else:
                 print()
                 print("GW1000 did not respond.")
