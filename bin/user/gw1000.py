@@ -518,6 +518,7 @@ import socket
 import struct
 import threading
 import time
+from operator import itemgetter
 
 # Python 2/3 compatibility shims
 import six
@@ -3448,21 +3449,20 @@ class Parser(object):
         The raw API response consists of:
             - a fixed header (0xFF 0xFF) at bytes 0 and 1
             - the API command code at byte 2
-            - the size of the data payload either at byte 3 or byte 3 and 4
+            - the size of the data either at byte 3 or byte 3 and 4
             - the data payload starting at byte 4 (size in byte 3 only) or
               byte 5 (size in bytes 3 and 4)
             - a checksum as the last byte
+
+        Normally we would use the size of the data to slice the raw data to
+        give the data payload but it seems the CMD_BROADCAST response does not
+        adhere to the API documentation (it's data length differs to that
+        expected). Instead we will use the fact that the data payload ends with
+        the second last byte of the raw data (last byte is the checksum) and
+        slice with :-1 to get the data payload.
         """
 
-        # Determine the size of the data payload, it's either a single byte at
-        # byte 3 or a big endian short (two byte) integer at bytes 3 and 4.
-        # size_bytes tells us which.
-        # first obtain the correct format for the size data
-        size_format = "B" if size_bytes == 1 else ">H"
-        # unpack the size data and obtain the size of the data payload
-        data_size = struct.unpack(size_format, raw_data[3:3 + size_bytes])[0]
-        # return the extracted data payload
-        return raw_data[3 + size_bytes:3 + size_bytes + data_size]
+        return raw_data[3 + size_bytes:-1]
 
     def parse_cmd_broadcast(self, raw_data):
         """Parse a response to a CMD_BROADCAST API call.
@@ -3507,11 +3507,6 @@ class Parser(object):
 
         # obtain the data payload
         data = self.get_payload(raw_data, size_bytes=2)
-        # # obtain the response size, it's a big endian short (two byte)
-        # # integer
-        # resp_size = struct.unpack('>H', raw_data[3:5])[0]
-        # # now extract the actual data payload
-        # data = raw_data[5:resp_size + 2]
         # initialise a dict to hold our result
         data_dict = dict()
         # extract and decode the MAC address
@@ -5822,15 +5817,20 @@ class DirectGw1000(object):
                 # we have at least one result
                 # first sort our list by IP address
                 # TODO. Need to sort this list by ip_address
-            #    sorted_list = sorted(ip_port_list, key=itemgetter(0))
-                sorted_list = ip_port_list
+                sorted_list = sorted(ip_port_list, key=itemgetter('ip_address'))
+                # sorted_list = ip_port_list
                 found = False
                 gw1000_found = 0
                 for device in sorted_list:
                     # TODO. Need to add SSID here somehow
                     if device['ip_address'] is not None and device['port'] is not None:
-                        print("GW1000 discovered at IP address %s on port %d" % (device['ip_address'],
-                                                                                 device['port']))
+                        if 'ssid' in device and device['ssid'] is not None:
+                            ssid_str = " (device setup SSID: %s)" % (device['ssid'],)
+                        else:
+                            ssid_str = ''
+                        print("GW1000 discovered at IP address %s on port %d%s" % (device['ip_address'],
+                                                                                   device['port'],
+                                                                                   ssid_str))
                         found = True
                         gw1000_found += 1
                 else:
