@@ -29,9 +29,15 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.3.2                                      Date: 22 April 2021
+Version: 0.4.0.a1                                    Date: xx June 2021
 
 Revision History
+    xx June 2021            v0.4.0
+        -   reworked processing of queued data by class Gw1000Service() to fix
+            a bug resulting is intermittent missing GW1000 data
+        -   implemented debug_wind reporting
+        -   re-factored debug_rain reporting to report both 'WeeWX' and
+            'GW1000' rain related fields
     22 April 2021           v0.3.2
         -   battery state data is now set to None for sensors with signal
             level == 0, can be disabled by setting option
@@ -504,7 +510,6 @@ the WeeWX daemon:
 # TODO. Confirm WH25 battery status
 # TODO. Confirm WH40 battery status
 # TODO. Need to know date-time data format for decode date_time()
-# TODO. Need to implement debug_wind reporting
 # TODO. Review queue dwell times
 
 # Python imports
@@ -1068,17 +1073,29 @@ class Gw1000(object):
 
     @staticmethod
     def log_rain_data(data, preamble=None):
-        """Log rain related data from the collector."""
+        """Log rain related data from the collector.
+
+        General routine to obtain and log rain related data from a packet. The
+        packet could be unmapped GW1000 data using 'GW1000' field names or it
+        may be mapped data or a WeeWX loop packet that uses 'WeeWX' field names
+        so we iterate over the keys ('WeeWX' field names) and values ('GW1000'
+        field names) of the rain field map.
+        """
 
         msg_list = []
-        # iterate over our rain_field_map values, these are the GW1000 'fields'
-        # we are interested in
-        for gw1000_rain_field in Gw1000.rain_field_map.values():
-            # do we have a field of interest
-            if gw1000_rain_field in data:
+        # iterate over our rain_field_map keys (the 'WeeWX' fields) and values
+        # (the 'GW1000' fields) we are interested in
+        for weewx_field, gw1000_field in six.iteritems(Gw1000.rain_field_map):
+            # do we have a 'WeeWX' field of interest
+            if weewx_field in data:
                 # we do so add some formatted output to our list
-                msg_list.append("%s=%s" % (gw1000_rain_field,
-                                           data[gw1000_rain_field]))
+                msg_list.append("%s=%s" % (weewx_field,
+                                           data[weewx_field]))
+            # do we have a 'GW1000' field of interest
+            if gw1000_field in data and weewx_field != gw1000_field:
+                # we do so add some formatted output to our list
+                msg_list.append("%s=%s" % (gw1000_field,
+                                           data[gw1000_field]))
         # pre-format the log line label
         label = "%s: " % preamble if preamble is not None else ""
         # if we have some entries log them otherwise provide suitable text
@@ -1086,6 +1103,39 @@ class Gw1000(object):
             loginf("%s%s" % (label, " ".join(msg_list)))
         else:
             loginf("%sno rain data found" % (label,))
+
+    @staticmethod
+    def log_wind_data(data, preamble=None):
+        """Log wind related data from the collector.
+
+        General routine to obtain and log wind related data from a packet. The
+        packet could be unmapped GW1000 data using 'GW1000' field names or it
+        may be mapped data or a WeeWX loop packet that uses 'WeeWX' field names
+        so we iterate over the keys ('WeeWX' field names) and values ('GW1000'
+        field names) of the rain field map.
+        """
+
+        msg_list = []
+        # iterate over our wind_field_map keys (the 'WeeWX' fields) and values
+        # (the 'GW1000' fields) we are interested in
+        for weewx_field, gw1000_field in six.iteritems(Gw1000.wind_field_map):
+            # do we have a 'WeeWX' field of interest
+            if weewx_field in data:
+                # we do so add some formatted output to our list
+                msg_list.append("%s=%s" % (weewx_field,
+                                           data[weewx_field]))
+            # do we have a 'GW1000' field of interest
+            if gw1000_field in data:
+                # we do so add some formatted output to our list
+                msg_list.append("%s=%s" % (gw1000_field,
+                                           data[gw1000_field]))
+        # pre-format the log line label
+        label = "%s: " % preamble if preamble is not None else ""
+        # if we have some entries log them otherwise provide suitable text
+        if len(msg_list) > 0:
+            loginf("%s%s" % (label, " ".join(msg_list)))
+        else:
+            loginf("%sno wind data found" % (label,))
 
     def get_cumulative_rain_field(self, data):
         """Determine the cumulative rain field used to derive field 'rain'.
@@ -1274,6 +1324,10 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         self.log_failures = True
         # reset the lost contact timestamp
         self.lost_con_ts = None
+        # create a placeholder for our most recent, non-stale queued GW1000
+        # sensor data packet
+        self.cached_sensor_data = None
+
         # log our version number
         loginf('version is %s' % DRIVER_VERSION)
         # log the relevant settings/parameters we are using
@@ -1301,9 +1355,15 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
     def new_loop_packet(self, event):
         """Augment a loop packet with GW1000 data.
 
-        When a new loop packet arrives check for any GW1000 data in the queue
-        and if available and not stale map the data to WeeWX fields and use the
-        mapped data to augment the loop packet.
+        When a new loop packet arrives process the queue looking for any GW1000
+        sensor data packets. If there are sensor data packets keep the most
+        recent, non-stale packet and use it to augment the loop packet. If there
+        are no sensor data packets, or they are all stale, then the loop packet
+        is not augmented.
+
+        The queue may also contain other control data, eg exception reporting
+        from the GW1000 driver thread. This control data needs to be processed
+        as well.
         """
 
         # log the loop packet received if necessary, there are several debug
@@ -1311,211 +1371,242 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         if self.debug_loop or self.debug_rain or self.debug_wind:
             loginf("Processing loop packet: %s %s" % (timestamp_to_string(event.packet['dateTime']),
                                                       natural_sort_dict(event.packet)))
-        # Check the queue to get the latest GW1000 sensor data. Wrap in a try
-        # to catch any instances where the queue is empty but also be prepared
-        # to pop off any old records to get the most recent.
-        try:
-            # get any data from the collector queue, but don't dwell very long
-            queue_data = self.collector.queue.get(True, 0.5)
-        except six.moves.queue.Empty:
-            # there was nothing in the queue so log it if required else continue
-            if self.debug_loop or self.debug_rain or self.debug_wind:
-                loginf("No queued GW1000 data to process")
-            if self.lost_con_ts is not None and time.time() > self.lost_con_ts + self.lost_contact_log_period:
-                self.lost_con_ts = time.time()
-                self.set_failure_logging(True)
-        else:
-            # We received something in the queue, it will be one of three
-            # things:
-            # 1. a dict containing sensor data
-            # 2. an exception
-            # 3. the value None signalling a serious error that means the
-            #    Collector needs to shut down
-
-            # if the data has a 'keys' attribute it is a dict so must be
-            # data
-            if hasattr(queue_data, 'keys'):
-                # we have a dict so assume it is data
-                self.lost_con_ts = None
-                self.set_failure_logging(True)
-
-                # log the mapped data if necessary, there are several debug
-                # settings that may require this, start from the highest (most
-                # encompassing) and work to the lowest (least encompassing)
-                if self.debug_loop:
-                    if 'datetime' in queue_data:
-                        loginf("Received GW1000 data: %s %s" % (timestamp_to_string(queue_data['datetime']),
-                                                                natural_sort_dict(queue_data)))
-                    else:
-                        loginf("Received GW1000 data: %s" % (natural_sort_dict(queue_data),))
-                else:
-                    # perhaps we have individual debugs such as rain or wind
-                    if self.debug_rain:
-                        # debug_rain is set so log the 'rain' field in the
-                        # mapped data, if it does not exist say so
-                        self.log_rain_data(queue_data, "Received GW1000 data")
-                    if self.debug_wind:
-                        # debug_wind is set so log the 'wind' fields in the
-                        # received data, if they do not exist say so
-                        pass
-                # if not already determined determine which cumulative rain
-                # field will be used to determine the per period rain field
-                if not self.rain_mapping_confirmed:
-                    self.get_cumulative_rain_field(queue_data)
-                # get the rainfall this period from total
-                self.calculate_rain(queue_data)
-                # get the lightning strike count this period from total
-                self.calculate_lightning_count(queue_data)
-
-                # Now start to create a loop packet. A loop packet must
-                # have a timestamp, if we have one (key 'datetime') in the
-                # received data use it otherwise allocate one.
-                if 'datetime' in queue_data:
-                    mapped_packet = {'dateTime': queue_data['datetime']}
-                else:
-                    # we don't have a timestamp so create one
-                    mapped_packet = {'dateTime': int(time.time() + 0.5)}
-                # map the raw data to WeeWX loop packet fields
-                mapped_data = self.map_data(queue_data)
-                # add the mapped data to the timestamped bare mapped packet
-                mapped_packet.update(mapped_data)
-                # log the mapped data if necessary
-                if self.debug_loop:
-                    loginf("Mapped GW1000 data: %s %s" % (timestamp_to_string(mapped_packet['dateTime']),
-                                                          natural_sort_dict(mapped_packet)))
-                else:
-                    # perhaps we have individual debugs such as rain or wind
-                    if self.debug_rain:
-                        # debug_rain is set so log the 'rain' field in the
-                        # mapped data, if it does not exist say so
-                        self.log_rain_data(mapped_packet, "Mapped GW1000 data")
-                    if self.debug_wind:
-                        # debug_wind is set so log the 'wind' fields in the
-                        # mapped data, if they do not exist say so
-                        pass
-                # and finally augment the loop packet with the mapped data
-                self.augment_packet(event.packet, mapped_packet)
-                # log the augmented packet if necessary, there are several debug
-                # settings that may require this, start from the highest (most
-                # encompassing) and work to the lowest (least encompassing)
-                if self.debug_loop:
-                    loginf('Augmented packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
-                                                        natural_sort_dict(event.packet)))
-                elif weewx.debug >= 2:
-                    logdbg('Augmented packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
-                                                        natural_sort_dict(event.packet)))
-                else:
-                    # perhaps we have individual debugs such as rain or wind
-                    if self.debug_rain:
-                        # debug_rain is set so log the 'rain' field in the
-                        # augmented loop packet, if it does not exist say
-                        # so
-                        self.log_rain_data(event.packet, "Augmented packet")
-                    if self.debug_wind:
-                        # debug_wind is set so log the 'wind' fields in the
-                        # loop packet being emitted, if they do not exist
-                        # say so
-                        pass
-            # if it's a tuple then it's a tuple with an exception and
-            # exception text
-            elif isinstance(queue_data, BaseException):
-                # We have an exception. The collector did not deem it serious
-                # enough to want to shutdown or it would have sent None
-                # instead. The action we take depends on the type of exception
-                # it is. If its a GW1000IOError we can ignore it as appropriate
-                # action will have been taken by the GW1000Collector. If it is
-                # anything else we log it.
-                # first extract our exception
-                e = queue_data
-                # and process it if we have something
-                if e:
-                    # is it a GW1000Error
-                    if isinstance(e, GW1000IOError):
-                        # set our failure logging appropriately
-                        if self.lost_con_ts is None:
-                            # we have previously been in contact with the
-                            # GW1000 so set our lost contact timestamp
-                            self.lost_con_ts = time.time()
-                            # any failure logging for this failure will already
-                            # have occurred in our GW1000Collector object and
-                            # its Station, so turn off failure logging
-                            self.set_failure_logging(False)
-                        elif self.log_failures:
-                            # we are already in a lost contact state, but
-                            # failure logging may have been turned on for a
-                            # 'once in a while' log entry so we need to turn it
-                            # off again
-                            self.set_failure_logging(False)
-                    else:
-                        # it's not so log it
-                        logerr("Caught unexpected exception %s: %s" % (e.__class__.__name__,
-                                                                       e))
-            # if it's None then its a signal the Collector needs to shutdown
-            elif queue_data is None:
-                # if debug_loop log what we received
-                if self.debug_loop:
-                    loginf("Received collector shutdown signal 'None'")
-                # we received the signal that the Gw1000Collector needs to
-                # shutdown, that means we cannot continue so call our shutdown
-                # method which will also shutdown the GW1000Collector thread
-                self.shutDown()
-                # the Gw1000Collector has been shutdown so we will not see
-                # anything more in the queue, we are still bound to
-                # NEW_LOOP_PACKET but since the queue is always empty we will
-                # just wait for the empty queue timeout before exiting
-            # if it's none of the above (which it should never be) we don't
-            # know what to do with it so pass and wait for the next item in
-            # the queue
+        # we are about to process the queue so reset our cached sensor data
+        # packet property
+        self.cached_sensor_data = None
+        # now process the queue until it is empty
+        while True:
+            # Get the next item from the queue. Wrap in a try to catch any
+            # instances where the queue is empty as that is our signal to break
+            # out of the while loop.
+            try:
+                # get the next item from the collector queue, but don't dwell
+                # very long
+                queue_data = self.collector.queue.get(True, 0.5)
+            except six.moves.queue.Empty:
+                # there was nothing in the queue so if required log this and
+                # then break out of the while loop
+                if self.debug_loop or self.debug_rain or self.debug_wind:
+                    loginf("No queued items to process")
+                if self.lost_con_ts is not None and time.time() > self.lost_con_ts + self.lost_contact_log_period:
+                    self.lost_con_ts = time.time()
+                    self.set_failure_logging(True)
+                # now break out of the while loop
+                break
             else:
-                pass
+                # We received something in the queue, it will be one of three
+                # things:
+                # 1. a dict containing sensor data
+                # 2. an exception
+                # 3. the value None signalling a serious error that means the
+                #    Collector needs to shut down
+
+                # if the data has a 'keys' attribute it is a dict so must be
+                # data
+                if hasattr(queue_data, 'keys'):
+                    # we have a dict so assume it is data
+                    self.lost_con_ts = None
+                    self.set_failure_logging(True)
+                    # log the received data if necessary, there are several
+                    # debug settings that may require this, start from the
+                    # highest (most encompassing) and work to the lowest (least
+                    # encompassing)
+                    if self.debug_loop:
+                        if 'datetime' in queue_data:
+                            # if we have a 'datetime' field it is almost
+                            # certainly a sensor data packet
+                            loginf("Received queued sensor data: %s %s" % (timestamp_to_string(queue_data['datetime']),
+                                                                           natural_sort_dict(queue_data)))
+                        else:
+                            # There is no 'datetime' field, this should not
+                            # happen. Log it in any case.
+                            loginf("Received queued data: %s" % (natural_sort_dict(queue_data),))
+                    else:
+                        # perhaps we have individual debugs such as rain or wind
+                        if self.debug_rain:
+                            # debug_rain is set so log the 'rain' field in the
+                            # mapped data, if it does not exist say so
+                            self.log_rain_data(queue_data, "Received GW1000 data")
+                        if self.debug_wind:
+                            # debug_wind is set so log the 'wind' fields in the
+                            # received data, if they do not exist say so
+                            self.log_wind_data(queue_data, "Received GW1000 data")
+                    # now process the just received sensor data packet
+                    self.process_queued_sensor_data(queue_data, event.packet['dateTime'])
+
+                # if it's a tuple then it's a tuple with an exception and
+                # exception text
+                elif isinstance(queue_data, BaseException):
+                    # We have an exception. The collector did not deem it serious
+                    # enough to want to shutdown or it would have sent None
+                    # instead. The action we take depends on the type of exception
+                    # it is. If its a GW1000IOError we can ignore it as appropriate
+                    # action will have been taken by the GW1000Collector. If it is
+                    # anything else we log it.
+                    # process the exception
+                    self.process_queued_exception(queue_data)
+
+                # if it's None then its a signal the Collector needs to shutdown
+                elif queue_data is None:
+                    # if debug_loop log what we received
+                    if self.debug_loop:
+                        loginf("Received collector shutdown signal 'None'")
+                    # we received the signal that the Gw1000Collector needs to
+                    # shutdown, that means we cannot continue so call our shutdown
+                    # method which will also shutdown the GW1000Collector thread
+                    self.shutDown()
+                    # the Gw1000Collector has been shutdown so we will not see
+                    # anything more in the queue, we are still bound to
+                    # NEW_LOOP_PACKET but since the queue is always empty we will
+                    # just wait for the empty queue timeout before exiting
+
+                # if it's none of the above (which it should never be) we don't
+                # know what to do with it so pass and wait for the next item in
+                # the queue
+                else:
+                    pass
+
+        # we have now finished processing the queue, do we have a sensor data
+        # packet to add to the loo packet
+        if self.cached_sensor_data is not None:
+            # we have a sensor data packet
+            # if not already done so determine which cumulative rain field will
+            # be used to determine the per period rain field
+            if not self.rain_mapping_confirmed:
+                self.get_cumulative_rain_field(self.cached_sensor_data)
+            # get the rainfall this period from total
+            self.calculate_rain(self.cached_sensor_data)
+            # get the lightning strike count this period from total
+            self.calculate_lightning_count(self.cached_sensor_data)
+            # map the raw data to WeeWX loop packet fields
+            mapped_data = self.map_data(self.cached_sensor_data)
+            # log the mapped data if necessary
+            if self.debug_loop:
+                loginf("Mapped GW1000 data: %s %s" % (timestamp_to_string(mapped_data['dateTime']),
+                                                      natural_sort_dict(mapped_data)))
+            else:
+                # perhaps we have individual debugs such as rain or wind
+                if self.debug_rain:
+                    # debug_rain is set so log the 'rain' field in the
+                    # mapped data, if it does not exist say so
+                    self.log_rain_data(mapped_data, "Mapped GW1000 data")
+                if self.debug_wind:
+                    # debug_wind is set so log the 'wind' fields in the
+                    # mapped data, if they do not exist say so
+                    self.log_wind_data(mapped_data, "Mapped GW1000 data")
+            # and finally augment the loop packet with the mapped data
+            self.augment_packet(event.packet, mapped_data)
+            # log the augmented packet if necessary, there are several debug
+            # settings that may require this, start from the highest (most
+            # encompassing) and work to the lowest (least encompassing)
+            if self.debug_loop:
+                loginf('Augmented packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
+                                                    natural_sort_dict(event.packet)))
+            elif weewx.debug >= 2:
+                logdbg('Augmented packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
+                                                    natural_sort_dict(event.packet)))
+            else:
+                # perhaps we have individual debugs such as rain or wind
+                if self.debug_rain:
+                    # debug_rain is set so log the 'rain' field in the
+                    # augmented loop packet, if it does not exist say
+                    # so
+                    self.log_rain_data(event.packet, "Augmented packet")
+                if self.debug_wind:
+                    # debug_wind is set so log the 'wind' fields in the
+                    # loop packet being emitted, if they do not exist
+                    # say so
+                    self.log_wind_data(event.packet, "Augmented packet")
+
+    def process_queued_sensor_data(self, sensor_data, date_time):
+        """Process a sensor data packet received in the collector queue.
+
+        When the queue is processed there may be multiple sensor data packets
+        in the queue but we only want the most recent, non-stale packet. Check
+        the received sensor packet is timestamped and not stale, if it is not
+        stale and is newer than the previously cached sensor data packet then
+        replace the cached packet with this packet.
+
+        Non-timestamped sensor data packets are discarded.
+
+        sensor_data: the sensor data packet obtained from the queue
+        date_time:   the timestamp of the current loop packet
+        """
+
+        # first up check we have a field 'datetime' and that it is not None
+        if 'datetime' in sensor_data and sensor_data['datetime'] is not None:
+            # now check it is not stale
+            if sensor_data['datetime'] > date_time - self.max_age:
+                # the sensor data is not stale, but is it more recent than our
+                # current cached packet
+                if self.cached_sensor_data is None or sensor_data['datetime'] > self.cached_sensor_data['dateTime']:
+                    # this packet is newer, so keep it
+                    self.cached_sensor_data = dict(sensor_data)
+                    # the cached packet will have the timestamp in the field
+                    # 'datetime', WeeWX requires 'dateTime'. Do the change here
+                    # rather than later.
+                    self.cached_sensor_data['dateTime'] = self.cached_sensor_data.pop('datetime')
+
+    def process_queued_exception(self, e):
+        """Process an exception received in the collector queue."""
+
+        # is it a GW1000Error
+        if isinstance(e, GW1000IOError):
+            # set our failure logging appropriately
+            if self.lost_con_ts is None:
+                # we have previously been in contact with the
+                # GW1000 so set our lost contact timestamp
+                self.lost_con_ts = time.time()
+                # any failure logging for this failure will already
+                # have occurred in our GW1000Collector object and
+                # its Station, so turn off failure logging
+                self.set_failure_logging(False)
+            elif self.log_failures:
+                # we are already in a lost contact state, but
+                # failure logging may have been turned on for a
+                # 'once in a while' log entry so we need to turn it
+                # off again
+                self.set_failure_logging(False)
+        else:
+            # it's not so log it
+            logerr("Caught unexpected exception %s: %s" % (e.__class__.__name__,
+                                                           e))
 
     def augment_packet(self, packet, data):
         """Augment a loop packet with data from another packet.
 
-        If the data to be used to augment the loop packet is not stale then
-        augment the loop packet with the data concerned. The data to be
-        used to augment the lop packet is assumed to contain a field 'usUnits'
-        designating the unit system of the data to be used for augmentation.
-        The data to be used for augmentation is converted to the same unit
-        system as used in the loop packet before augmentation occurs. Only
-        fields that exist in the data used for augmentation but not in the loop
-        packet are added to the loop packet.
+        The data to be used for augmentation (the new data) may not be in the
+        same unit system as the loop data being augmented so the new data is
+        converted to the same unit system as used in the loop packet before
+        augmentation occurs. Only fields that exist in the new data but not in
+        the loop packet are added to the loop packet.
 
         packet: dict containing the loop packet
-        data: dict containing the data to be used to augment the loop packet
+        data:   dict containing the data to be used to augment the loop packet
         """
 
-        if 'dateTime' in data and data['dateTime'] > packet['dateTime'] - self.max_age:
-            # the GW1000 data is not stale so augmentation will occur, log if required
-            if self.debug_loop:
-                _stem = "Mapped data(%s) will be used to augment loop packet(%s)"
-                loginf(_stem % (timestamp_to_string(data['dateTime']),
-                                timestamp_to_string(packet['dateTime'])))
-            # But the mapped data must be converted to the same unit system as
-            # the packet being augmented. First get a converter.
-            converter = weewx.units.StdUnitConverters[packet['usUnits']]
-            # convert the mapped data to the same unit system as the packet to
-            # be augmented
-            converted_data = converter.convertDict(data)
-            # if required log the converted data
-            if self.debug_loop:
-                loginf("Converted GW1000 data: %s %s" % (timestamp_to_string(converted_data['dateTime']),
-                                                         natural_sort_dict(converted_data)))
-            # now we can freely augment the packet with any of our mapped obs
-            for field, data in six.iteritems(converted_data):
-                # Any existing packet fields, whether they contain data or are
-                # None, are respected and left alone. Only fields from the
-                # converted data that do not already exist in the packet are
-                # used to augment the packet.
-                if field not in packet:
-                    packet[field] = data
-        else:
-            # the GW1000 data is either stale or not timestamped (this should
-            # never happen) and we can't use it to augment, log if required
-            if self.debug_loop:
-                _stem = "Mapped data (%s) is too old to augment loop packet(%s)"
-                loginf(_stem % (timestamp_to_string(data.get('dateTime')),
-                                timestamp_to_string(packet['dateTime'])))
+        if self.debug_loop:
+            _stem = "Mapped data(%s) will be used to augment loop packet(%s)"
+            loginf(_stem % (timestamp_to_string(data['dateTime']),
+                            timestamp_to_string(packet['dateTime'])))
+        # But the mapped data must be converted to the same unit system as
+        # the packet being augmented. First get a converter.
+        converter = weewx.units.StdUnitConverters[packet['usUnits']]
+        # convert the mapped data to the same unit system as the packet to
+        # be augmented
+        converted_data = converter.convertDict(data)
+        # if required log the converted data
+        if self.debug_loop:
+            loginf("Converted GW1000 data: %s %s" % (timestamp_to_string(converted_data['dateTime']),
+                                                     natural_sort_dict(converted_data)))
+        # now we can freely augment the packet with any of our mapped obs
+        for field, data in six.iteritems(converted_data):
+            # Any existing packet fields, whether they contain data or are
+            # None, are respected and left alone. Only fields from the
+            # converted data that do not already exist in the packet are
+            # used to augment the packet.
+            if field not in packet:
+                packet[field] = data
 
     def set_failure_logging(self, log_failures):
         """Turn failure logging on or off.
@@ -1992,7 +2083,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # received data, if they do not exist say so
-                            pass
+                            self.log_wind_data(queue_data, "Received GW1000 data")
                     # Now start to create a loop packet. A loop packet must
                     # have a timestamp, if we have one (key 'datetime') in the
                     # received data use it otherwise allocate one.
@@ -2027,7 +2118,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # mapped data, if they do not exist say so
-                            pass
+                            self.log_wind_data(mapped_data, "Mapped GW1000 data")
                     # add the mapped data to the empty packet
                     packet.update(mapped_data)
                     # log the packet if necessary, there are several debug
@@ -2052,7 +2143,8 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                             # debug_wind is set so log the 'wind' fields in the
                             # loop packet being emitted, if they do not exist
                             # say so
-                            pass
+                            self.log_wind_data(mapped_data,
+                                               "Packets%s" % timestamp_to_string(packet['dateTime']))
                     # yield the loop packet
                     yield packet
                 # if it's a tuple then it's a tuple with an exception and
