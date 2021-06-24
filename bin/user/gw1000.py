@@ -4782,15 +4782,11 @@ def obfuscate(plain, obf_char='*'):
 
     if plain is not None and len(plain) > 0:
         # obtain the number of the characters to be retained
-        stem = 4
-        stem = 3 if len(plain) < 8 else stem
-        stem = 2 if len(plain) < 6 else stem
-        stem = 1 if len(plain) < 4 else stem
-        stem = 0 if len(plain) < 3 else stem
+        stem = min(4, len(plain) // 2)
         if stem > 0:
             # we are retaining some characters so do a little string
             # manipulation
-            obfuscated = obf_char * (len(plain) - stem) + plain[-stem:]
+            obfuscated = "".join([obf_char * (len(plain) - stem), plain[-stem:]])
         else:
             # we are obfuscating everything
             obfuscated = obf_char * len(plain)
