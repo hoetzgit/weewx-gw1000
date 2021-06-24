@@ -789,7 +789,7 @@ class Gw1000(object):
         'yearRain': 'rainyear',
         'totalRain': 'raintotals',
     }
-    # wind related fields default field map, merged into default_field_map to
+    # Wind related fields default field map, merged into default_field_map to
     # give the overall default field map. Kept separate to make it easier to
     # iterate over wind related fields.
     wind_field_map = {
@@ -1125,7 +1125,7 @@ class Gw1000(object):
                 msg_list.append("%s=%s" % (weewx_field,
                                            data[weewx_field]))
             # do we have a 'GW1000' field of interest
-            if gw1000_field in data:
+            if gw1000_field in data and weewx_field != gw1000_field:
                 # we do so add some formatted output to our list
                 msg_list.append("%s=%s" % (gw1000_field,
                                            data[gw1000_field]))
@@ -1499,11 +1499,8 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
             # log the augmented packet if necessary, there are several debug
             # settings that may require this, start from the highest (most
             # encompassing) and work to the lowest (least encompassing)
-            if self.debug_loop:
+            if self.debug_loop or weewx.debug >= 2:
                 loginf('Augmented packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
-                                                    natural_sort_dict(event.packet)))
-            elif weewx.debug >= 2:
-                logdbg('Augmented packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
                                                     natural_sort_dict(event.packet)))
             else:
                 # perhaps we have individual debugs such as rain or wind
@@ -1546,6 +1543,23 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                     # 'datetime', WeeWX requires 'dateTime'. Do the change here
                     # rather than later.
                     self.cached_sensor_data['dateTime'] = self.cached_sensor_data.pop('datetime')
+            else:
+                # data is stale, discard but log first
+                if self.debug_loop or weewx.debug >= 2:
+                    if 'datetime' in sensor_data:
+                        _msg = "'datetime' is None"
+                    else:
+                        _msg = "missing 'datetime'"
+                    loginf("Queued sensor data discarded: data (%s) is stale" % timestamp_to_string(sensor_data['datetime']))
+        else:
+            # We have no datetime field or it is None so we can't tell when
+            # this data was obtained. Discard the data but log it first.
+            if self.debug_loop or weewx.debug >= 2:
+                if 'datetime' in sensor_data:
+                    _msg = "'datetime' is None"
+                else:
+                    _msg = "missing 'datetime'"
+                loginf("Queued sensor data discarded: %s" % _msg)
 
     def process_queued_exception(self, e):
         """Process an exception received in the collector queue."""
