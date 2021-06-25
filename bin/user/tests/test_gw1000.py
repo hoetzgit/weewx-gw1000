@@ -54,55 +54,293 @@ import user.gw1000
 # TODO. Add decode firmware check refer issue #31
 
 
-class SensorsTestCase(unittest.TestCase):
-    """Test the Sensors class."""
+class ParserTestCase(unittest.TestCase):
+    """Test the Parser class."""
+
+    response1 = {'raw': 1,
+                 'payload': 2
+                }
+    response2 = {'raw': 1,
+                 'payload': 2
+                }
+    cmd_broadcast = {'raw': 1,
+                     'parsed': 2
+                     }
+    cmd_read_ecowitt = {'raw': 1,
+                        'parsed': 2
+                        }
+    parse_cmd_read_wunderground = {'raw': 1,
+                                   'parsed': 2
+                                   }
+    parse_cmd_read_wow = {'raw': 1,
+                          'parsed': 2
+                          }
+    parse_cmd_read_weathercloud = {'raw': 1,
+                                   'parsed': 2
+                                   }
+    parse_cmd_read_customized = {'raw': 1,
+                                 'parsed': 2
+                                 }
+    parse_cmd_read_usrpath = {'raw': 1,
+                              'parsed': 2
+                              }
+    parse_cmd_get_soilhumiad = {'raw': 1,
+                                'parsed': 2
+                                }
+    parse_cmd_get_mulch_offset = {'raw': 1,
+                                  'parsed': 2
+                                  }
+    parse_cmd_get_pm25_offset = {'raw': 1,
+                                 'parsed': 2
+                                 }
+    parse_cmd_get_co2_offset = {'raw': 1,
+                                'parsed': 2
+                                }
+    parse_cmd_read_station_mac = {'raw': 1,
+                                  'parsed': 2
+                                  }
+    parse_cmd_gw1000_livedata = {'raw': 1,
+                                 'parsed': 2
+                                 }
+    parse_cmd_read_ssss = {'raw': 1,
+                           'parsed': 2
+                           }
+    parse_cmd_read_raindata = {'raw': 1,
+                               'parsed': 2
+                               }
+    parse_cmd_read_gain = {'raw': 1,
+                           'parsed': 2
+                           }
+    parse_cmd_read_calibration = {'raw': 1,
+                                  'parsed': 2
+                                  }
+    parse_cmd_read_sensor_id = {'raw': 1,
+                                'parsed': 2
+                                }
+    parse_cmd_read_sensor_id_new = {'raw': 1,
+                                    'parsed': 2
+                                    }
+    parse_cmd_read_firmware_version = {'raw': 1,
+                                       'parsed': 2
+                                       }
+    cmd_read_ecowitt = {'raw': 1,
+                        'parsed': 2
+                        }
+
+    def setUp(self):
+        # get a Parser object
+        self.parser = user.gw1000.Parser()
+        self.maxDiff = None
+
+    def tearDown(self):
+        pass
+
+    def test_get_payload(self):
+        """Test Parser.get_payload method."""
+
+        # test a response where the size is stored in a single byte
+        self.assertEqual(self.parser.get_payload(self.response1['raw'], size_bytes=1), self.response1['payload'])
+        # test a response where the size is stored in two bytes
+        self.assertEqual(self.parser.get_payload(self.response2['raw'], size_bytes=2), self.response2['payload'])
+
+    def test_parse_cmds(self):
+        """Test the Parser.parse_cmd_xxxxx() methods."""
+
+        # test parse_cmd_broadcast()
+        self.assertEqual(self.parser.parse_cmd_broadcast(self.cmd_broadcast['raw']),
+                         self.cmd_broadcast['parsed'])
+        # test cmd_read_ecowitt()
+        self.assertEqual(self.parser.cmd_read_ecowitt(self.cmd_read_ecowitt['raw']),
+                         self.cmd_read_ecowitt['parsed'])
+        # test parse_cmd_read_wunderground()
+        self.assertEqual(self.parser.parse_cmd_read_wunderground(self.parse_cmd_read_wunderground['raw']),
+                         self.parse_cmd_read_wunderground['parsed'])
+        # test parse_cmd_read_wow()
+        self.assertEqual(self.parser.parse_cmd_read_wow(self.parse_cmd_read_wow['raw']),
+                         self.parse_cmd_read_wow['parsed'])
+        # test parse_cmd_read_weathercloud()
+        self.assertEqual(self.parser.parse_cmd_read_weathercloud(self.parse_cmd_read_weathercloud['raw']),
+                         self.parse_cmd_read_weathercloud['parsed'])
+        # test parse_cmd_read_customized()
+        self.assertEqual(self.parser.parse_cmd_read_customized(self.parse_cmd_read_customized['raw']),
+                         self.parse_cmd_read_customized['parsed'])
+        # test parse_cmd_read_usrpath()
+        self.assertEqual(self.parser.parse_cmd_read_usrpath(self.parse_cmd_read_usrpath['raw']),
+                         self.parse_cmd_read_usrpath['parsed'])
+        # test parse_cmd_get_soilhumiad()
+        self.assertEqual(self.parser.parse_cmd_get_soilhumiad(self.parse_cmd_get_soilhumiad['raw']),
+                         self.parse_cmd_get_soilhumiad['parsed'])
+        # test parse_cmd_get_mulch_offset()
+        self.assertEqual(self.parser.parse_cmd_get_mulch_offset(self.parse_cmd_get_mulch_offset['raw']),
+                         self.parse_cmd_get_mulch_offset['parsed'])
+        # test parse_cmd_get_pm25_offset()
+        self.assertEqual(self.parser.parse_cmd_get_pm25_offset(self.parse_cmd_get_pm25_offset['raw']),
+                         self.parse_cmd_get_pm25_offset['parsed'])
+        # test parse_cmd_get_co2_offset()
+        self.assertEqual(self.parser.parse_cmd_get_co2_offset(self.parse_cmd_get_co2_offset['raw']),
+                         self.parse_cmd_get_co2_offset['parsed'])
+        # test parse_cmd_read_station_mac()
+        self.assertEqual(self.parser.parse_cmd_read_station_mac(self.parse_cmd_read_station_mac['raw']),
+                         self.parse_cmd_read_station_mac['parsed'])
+        # test parse_cmd_gw1000_livedata()
+        self.assertEqual(self.parser.parse_cmd_gw1000_livedata(self.parse_cmd_gw1000_livedata['raw']),
+                         self.parse_cmd_gw1000_livedata['parsed'])
+        # test parse_cmd_read_ssss()
+        self.assertEqual(self.parser.parse_cmd_read_ssss(self.parse_cmd_read_ssss['raw']),
+                         self.parse_cmd_read_ssss['parsed'])
+        # test parse_cmd_read_raindata()
+        self.assertEqual(self.parser.parse_cmd_read_raindata(self.parse_cmd_read_raindata['raw']),
+                         self.parse_cmd_read_raindata['parsed'])
+        # test parse_cmd_read_gain()
+        self.assertEqual(self.parser.parse_cmd_read_gain(self.parse_cmd_read_gain['raw']),
+                         self.parse_cmd_read_gain['parsed'])
+        # test parse_cmd_read_calibration()
+        self.assertEqual(self.parser.parse_cmd_read_calibration(self.parse_cmd_read_calibration['raw']),
+                         self.parse_cmd_read_calibration['parsed'])
+        # test parse_cmd_read_sensor_id()
+        self.assertEqual(self.parser.parse_cmd_read_sensor_id(self.parse_cmd_read_sensor_id['raw']),
+                         self.parse_cmd_read_sensor_id['parsed'])
+        # test parse_cmd_read_sensor_id_new()
+        self.assertEqual(self.parser.parse_cmd_read_sensor_id_new(self.parse_cmd_read_sensor_id_new['raw']),
+                         self.parse_cmd_read_sensor_id_new['parsed'])
+        # test parse_cmd_read_firmware_version()
+        self.assertEqual(self.parser.parse_cmd_read_firmware_version(self.parse_cmd_read_firmware_version['raw']),
+                         self.parse_cmd_read_firmware_version['parsed'])
+
+
+class SensorsStateTestCase(unittest.TestCase):
+    """Test the Parser.SensorsState class."""
+
+    sensor_ids = {
+        b'\x00': {'name': 'wh65', 'long_name': 'WH65', 'batt_fn': 'batt_binary'},
+        b'\x01': {'name': 'wh68', 'long_name': 'WH68', 'batt_fn': 'batt_volt'},
+        b'\x02': {'name': 'ws80', 'long_name': 'WS80', 'batt_fn': 'batt_volt'},
+        b'\x03': {'name': 'wh40', 'long_name': 'WH40', 'batt_fn': 'batt_binary'},
+        b'\x04': {'name': 'wh25', 'long_name': 'WH25', 'batt_fn': 'batt_binary'},
+        b'\x05': {'name': 'wh26', 'long_name': 'WH26', 'batt_fn': 'batt_binary'},
+        b'\x06': {'name': 'wh31_ch1', 'long_name': 'WH31 ch1', 'batt_fn': 'batt_binary'},
+        b'\x07': {'name': 'wh31_ch2', 'long_name': 'WH31 ch2', 'batt_fn': 'batt_binary'},
+        b'\x08': {'name': 'wh31_ch3', 'long_name': 'WH31 ch3', 'batt_fn': 'batt_binary'},
+        b'\x09': {'name': 'wh31_ch4', 'long_name': 'WH31 ch4', 'batt_fn': 'batt_binary'},
+        b'\x0a': {'name': 'wh31_ch5', 'long_name': 'WH31 ch5', 'batt_fn': 'batt_binary'},
+        b'\x0b': {'name': 'wh31_ch6', 'long_name': 'WH31 ch6', 'batt_fn': 'batt_binary'},
+        b'\x0c': {'name': 'wh31_ch7', 'long_name': 'WH31 ch7', 'batt_fn': 'batt_binary'},
+        b'\x0d': {'name': 'wh31_ch8', 'long_name': 'WH31 ch8', 'batt_fn': 'batt_binary'},
+        b'\x0e': {'name': 'wh51_ch1', 'long_name': 'WH51 ch1', 'batt_fn': 'batt_binary'},
+        b'\x0f': {'name': 'wh51_ch2', 'long_name': 'WH51 ch2', 'batt_fn': 'batt_binary'},
+        b'\x10': {'name': 'wh51_ch3', 'long_name': 'WH51 ch3', 'batt_fn': 'batt_binary'},
+        b'\x11': {'name': 'wh51_ch4', 'long_name': 'WH51 ch4', 'batt_fn': 'batt_binary'},
+        b'\x12': {'name': 'wh51_ch5', 'long_name': 'WH51 ch5', 'batt_fn': 'batt_binary'},
+        b'\x13': {'name': 'wh51_ch6', 'long_name': 'WH51 ch6', 'batt_fn': 'batt_binary'},
+        b'\x14': {'name': 'wh51_ch7', 'long_name': 'WH51 ch7', 'batt_fn': 'batt_binary'},
+        b'\x15': {'name': 'wh51_ch8', 'long_name': 'WH51 ch8', 'batt_fn': 'batt_binary'},
+        b'\x16': {'name': 'wh41_ch1', 'long_name': 'WH41 ch1', 'batt_fn': 'batt_int'},
+        b'\x17': {'name': 'wh41_ch2', 'long_name': 'WH41 ch2', 'batt_fn': 'batt_int'},
+        b'\x18': {'name': 'wh41_ch3', 'long_name': 'WH41 ch3', 'batt_fn': 'batt_int'},
+        b'\x19': {'name': 'wh41_ch4', 'long_name': 'WH41 ch4', 'batt_fn': 'batt_int'},
+        b'\x1a': {'name': 'wh57', 'long_name': 'WH57', 'batt_fn': 'batt_int'},
+        b'\x1b': {'name': 'wh55_ch1', 'long_name': 'WH55 ch1', 'batt_fn': 'batt_int'},
+        b'\x1c': {'name': 'wh55_ch2', 'long_name': 'WH55 ch2', 'batt_fn': 'batt_int'},
+        b'\x1d': {'name': 'wh55_ch3', 'long_name': 'WH55 ch3', 'batt_fn': 'batt_int'},
+        b'\x1e': {'name': 'wh55_ch4', 'long_name': 'WH55 ch4', 'batt_fn': 'batt_int'},
+        b'\x1f': {'name': 'wh34_ch1', 'long_name': 'WH34 ch1', 'batt_fn': 'batt_volt'},
+        b'\x20': {'name': 'wh34_ch2', 'long_name': 'WH34 ch2', 'batt_fn': 'batt_volt'},
+        b'\x21': {'name': 'wh34_ch3', 'long_name': 'WH34 ch3', 'batt_fn': 'batt_volt'},
+        b'\x22': {'name': 'wh34_ch4', 'long_name': 'WH34 ch4', 'batt_fn': 'batt_volt'},
+        b'\x23': {'name': 'wh34_ch5', 'long_name': 'WH34 ch5', 'batt_fn': 'batt_volt'},
+        b'\x24': {'name': 'wh34_ch6', 'long_name': 'WH34 ch6', 'batt_fn': 'batt_volt'},
+        b'\x25': {'name': 'wh34_ch7', 'long_name': 'WH34 ch7', 'batt_fn': 'batt_volt'},
+        b'\x26': {'name': 'wh34_ch8', 'long_name': 'WH34 ch8', 'batt_fn': 'batt_volt'},
+        b'\x27': {'name': 'wh45', 'long_name': 'WH45', 'batt_fn': 'batt_int'},
+        b'\x28': {'name': 'wh35_ch1', 'long_name': 'WH35 ch1', 'batt_fn': 'batt_volt'},
+        b'\x29': {'name': 'wh35_ch2', 'long_name': 'WH35 ch2', 'batt_fn': 'batt_volt'},
+        b'\x2a': {'name': 'wh35_ch3', 'long_name': 'WH35 ch3', 'batt_fn': 'batt_volt'},
+        b'\x2b': {'name': 'wh35_ch4', 'long_name': 'WH35 ch4', 'batt_fn': 'batt_volt'},
+        b'\x2c': {'name': 'wh35_ch5', 'long_name': 'WH35 ch5', 'batt_fn': 'batt_volt'},
+        b'\x2d': {'name': 'wh35_ch6', 'long_name': 'WH35 ch6', 'batt_fn': 'batt_volt'},
+        b'\x2e': {'name': 'wh35_ch7', 'long_name': 'WH35 ch7', 'batt_fn': 'batt_volt'},
+        b'\x2f': {'name': 'wh35_ch8', 'long_name': 'WH35 ch8', 'batt_fn': 'batt_volt'}
+    }
+    not_registered = ('fffffffe', 'ffffffff')
+    parse_sensor_id_data = {'raw': 1,
+                            'parsed': 2
+                            }
+    get_sensor_state_packet = {'raw': 1,
+                               'parsed': 2
+                               }
 
     def setUp(self):
 
-        # get a Sensors object
-        collector = user.gw1000.Gw1000Collector()
-        self.sensors = collector.station.parser()
+        # get a Parser object
+        self.parser = user.gw1000.Parser()
+        self.maxDiff = None
 
-    def test_battery_methods(self):
-        """Test methods used to determine battery states."""
+    def tearDown(self):
+
+        pass
+
+    def test_constants(self):
+        """Test SensorsState class constants."""
+
+        # sensor_ids
+        self.assertEqual(self.parser.sen_state_obj.sensor_ids, self.sensor_ids)
+        # not_registered
+        self.assertEqual(self.parser.sen_state_obj.not_registered, self.not_registered)
+
+    def test_parse_sensor_id_data(self):
+        """Test parse_sensor_id_data() method."""
+
+        self.assertEqual(self.parser.sen_state_obj.parse_sensor_id_data['raw'],
+                         self.parse_sensor_id_data['parsed'])
+
+    def test_get_sensor_state_packet(self):
+        """Test get_sensor_state_packet() method."""
+
+        self.assertEqual(self.parser.sen_state_obj.get_sensor_state_packet['raw'],
+                         self.get_sensor_state_packet['parsed'])
+
+    def test_battery_desc(self):
+        """Test battery_desc() method."""
+
+        # binary description
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x00', 0), 'OK')
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x00', 1), 'low')
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x00', 2), 'Unknown')
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x00', None), 'Unknown')
+
+        # int description
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x16', 0), 'low')
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x16', 1), 'low')
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x16', 4), 'OK')
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x16', 6), 'DC')
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x16', 7), 'Unknown')
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x16', None), 'Unknown')
+
+        # voltage description
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x20', 0), 'low')
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x20', 1.2), 'low')
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x20', 1.5), 'OK')
+        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x20', None), 'Unknown')
+
+    def test_battery_decode(self):
+        """Test battery decode methods."""
 
         # binary battery states (method batt_binary())
-        self.assertEqual(self.sensors.batt_binary(255), 1)
-        self.assertEqual(self.sensors.batt_binary(4), 0)
+        self.assertEqual(self.parser.sen_state_obj.batt_binary(255), 1)
+        self.assertEqual(self.parser.sen_state_obj.batt_binary(4), 0)
 
         # integer battery states (method batt_int())
         for int_batt in range(7):
-            self.assertEqual(self.sensors.batt_int(int_batt), int_batt)
+            self.assertEqual(self.parser.sen_state_obj.batt_int(int_batt), int_batt)
 
         # voltage battery states (method batt_volt())
-        self.assertEqual(self.sensors.batt_volt(0), 0.00)
-        self.assertEqual(self.sensors.batt_volt(100), 2.00)
-        self.assertEqual(self.sensors.batt_volt(101), 2.02)
-        self.assertEqual(self.sensors.batt_volt(255), 5.1)
+        self.assertEqual(self.parser.sen_state_obj.batt_volt(0), 0.00)
+        self.assertEqual(self.parser.sen_state_obj.batt_volt(100), 2.00)
+        self.assertEqual(self.parser.sen_state_obj.batt_volt(101), 2.02)
+        self.assertEqual(self.parser.sen_state_obj.batt_volt(255), 5.1)
 
-        # binary description
-        self.assertEqual(self.sensors.battery_desc(b'\x00', 0), 'OK')
-        self.assertEqual(self.sensors.battery_desc(b'\x00', 1), 'low')
-        self.assertEqual(self.sensors.battery_desc(b'\x00', 2), 'Unknown')
-        self.assertEqual(self.sensors.battery_desc(b'\x00', None), 'Unknown')
-
-        # int description
-        self.assertEqual(self.sensors.battery_desc(b'\x16', 0), 'low')
-        self.assertEqual(self.sensors.battery_desc(b'\x16', 1), 'low')
-        self.assertEqual(self.sensors.battery_desc(b'\x16', 4), 'OK')
-        self.assertEqual(self.sensors.battery_desc(b'\x16', 6), 'DC')
-        self.assertEqual(self.sensors.battery_desc(b'\x16', 7), 'Unknown')
-        self.assertEqual(self.sensors.battery_desc(b'\x16', None), 'Unknown')
-
-        # voltage description
-        self.assertEqual(self.sensors.battery_desc(b'\x20', 0), 'low')
-        self.assertEqual(self.sensors.battery_desc(b'\x20', 1.2), 'low')
-        self.assertEqual(self.sensors.battery_desc(b'\x20', 1.5), 'OK')
-        self.assertEqual(self.sensors.battery_desc(b'\x20', None), 'Unknown')
-
-
-class ParseTestCase(unittest.TestCase):
-    """Test the Gw1000Collector Parser class."""
+class SensorsDataTestCase(unittest.TestCase):
+    """Test the Parser.SensorsData class."""
 
     batt_fields = ('multi', 'wh31', 'wh51', 'wh57', 'wh68', 'ws80',
                    'unused', 'wh41', 'wh55')
