@@ -4095,6 +4095,7 @@ class Parser(object):
                 self.sensor_ids[b'\x00']['long_name'] = 'WH24'
 
         def parse_sensor_id_data(self, data):
+            # TODO. Is this raw sensor data or something else?
             """Parse the raw sensor ID data and store the results."""
 
             # initialise a dict to hold our results
