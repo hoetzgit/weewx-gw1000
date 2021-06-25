@@ -3228,6 +3228,7 @@ class Station(object):
         raw_data = self.send_cmd_with_retries('CMD_READ_FIRMWARE_VERSION')
         return self.parser.parse('CMD_READ_FIRMWARE_VERSION', raw_data)['firmware']
 
+    # TODO. Is the payload parameter required?
     def send_cmd_with_retries(self, cmd, payload=b''):
         """Send a command to the GW1000 API with retries and return the
         response.
