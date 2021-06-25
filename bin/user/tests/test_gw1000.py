@@ -1,17 +1,19 @@
 """
 Test suite for the GW1000 driver.
 
-Copyright (C) 2020 Gary Roderick                   gjroderick<at>gmail.com
+Copyright (C) 2020-21 Gary Roderick                gjroderick<at>gmail.com
 
 A python unittest based test suite for aspects of the GW1000 driver. The test
 suite tests correct operation of:
 
 -
 
-Version: 0.3.0                                   Date: 20 March 2021
+Version: 0.4.0a1                                 Date: xx June 2021
 
 Revision History
-    20 March 2021      v0.3.0
+    xx June 2021        v0.4.0
+        - reworked to cater for gw1000.py v0.4.0 changes
+    20 March 2021       v0.3.0
         - incomplete but works with release v0.3.0 under python3
         - initial release
 
@@ -54,15 +56,124 @@ import user.gw1000
 # TODO. Add decode firmware check refer issue #31
 
 
+class StationTestCase(unittest.TestCase):
+    """Test the Station class."""
+
+    commands = {
+        'CMD_WRITE_SSID': b'\x11',
+        'CMD_BROADCAST': b'\x12',
+        'CMD_READ_ECOWITT': b'\x1E',
+        'CMD_WRITE_ECOWITT': b'\x1F',
+        'CMD_READ_WUNDERGROUND': b'\x20',
+        'CMD_WRITE_WUNDERGROUND': b'\x21',
+        'CMD_READ_WOW': b'\x22',
+        'CMD_WRITE_WOW': b'\x23',
+        'CMD_READ_WEATHERCLOUD': b'\x24',
+        'CMD_WRITE_WEATHERCLOUD': b'\x25',
+        'CMD_READ_STATION_MAC': b'\x26',
+        'CMD_GW1000_LIVEDATA': b'\x27',
+        'CMD_GET_SOILHUMIAD': b'\x28',
+        'CMD_SET_SOILHUMIAD': b'\x29',
+        'CMD_READ_CUSTOMIZED': b'\x2A',
+        'CMD_WRITE_CUSTOMIZED': b'\x2B',
+        'CMD_GET_MulCH_OFFSET': b'\x2C',
+        'CMD_SET_MulCH_OFFSET': b'\x2D',
+        'CMD_GET_PM25_OFFSET': b'\x2E',
+        'CMD_SET_PM25_OFFSET': b'\x2F',
+        'CMD_READ_SSSS': b'\x30',
+        'CMD_WRITE_SSSS': b'\x31',
+        'CMD_READ_RAINDATA': b'\x34',
+        'CMD_WRITE_RAINDATA': b'\x35',
+        'CMD_READ_GAIN': b'\x36',
+        'CMD_WRITE_GAIN': b'\x37',
+        'CMD_READ_CALIBRATION': b'\x38',
+        'CMD_WRITE_CALIBRATION': b'\x39',
+        'CMD_READ_SENSOR_ID': b'\x3A',
+        'CMD_WRITE_SENSOR_ID': b'\x3B',
+        'CMD_READ_SENSOR_ID_NEW': b'\x3C',
+        'CMD_WRITE_REBOOT': b'\x40',
+        'CMD_WRITE_RESET': b'\x41',
+        'CMD_WRITE_UPDATE': b'\x43',
+        'CMD_READ_FIRMWARE_VERSION': b'\x50',
+        'CMD_READ_USRPATH': b'\x51',
+        'CMD_WRITE_USRPATH': b'\x52',
+        'CMD_GET_CO2_OFFSET': b'\x53',
+        'CMD_SET_CO2_OFFSET': b'\x54'
+    }
+    header = b'\xff\xff'
+    cmd_broadcast_packet = 1
+    cmd_read_fware_ver = b'\x50'
+    read_fware_cmd_bytes = b'\xff\xffP\x03S'
+    read_fware_resp_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1v'
+    read_fware_resp_bad_checksum_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1w'
+    read_fware_resp_bad_cmd_bytes = b'\xff\xffQ\x11\rGW1000_V1.6.1v'
+
+    def setUp(self):
+        # get a Gw1000Collector Station object, specify phony ip, port and mac
+        # to prevent the GW1000 driver from actually looking for a GW1000
+        self.station = user.gw1000.Station(ip_address='1.1.1.1',
+                                           port=1234,
+                                           mac='1:2:3:4:5:6')
+        self.maxDiff = None
+
+    def tearDown(self):
+        pass
+
+    def test_constants(self):
+        """Test class Station() constants."""
+
+        # commands
+        self.assertEqual(self.station.commands, self.commands)
+        # header
+        self.assertEqual(self.station.header, self.header)
+
+    def test_build_cmd_packet(self):
+        """Test build_cmd_packet() method."""
+
+        # test building a valid command
+        self.assertEqual(self.station.build_cmd_packet('CMD_BROADCAST'), self.cmd_broadcast_packet)
+        # TODO. May be able to ditch this one
+        # test building a valid command with a user specified payload
+        self.assertEqual(self.station.build_cmd_packet('CMD_BROADCAST', payload=b'1234'), self.cmd_broadcast_packet)
+        # test building an invalid command, there should be an UnknownCommand exception
+        self.assertRaises(user.gw1000.UnknownCommand,
+                          self.station.build_cmd_packet,
+                          cmd='CMD_FAKE')
+
+    def test_check_response(self):
+        """Test the check_response() and calc_checksum() methods."""
+
+        # test calc_checksum()
+        self.assertEqual(self.station.calc_checksum(b'00112233bbccddee'), 168)
+        # test check_response() with good data, should be no exception
+        try:
+            self.station.check_response(self.read_fware_resp_bytes,
+                                        self.cmd_read_fware_ver)
+        except user.gw1000.InvalidChecksum:
+            self.fail("check_reponse() raised an InvalidChecksum exception")
+        except user.gw1000.InvalidApiResponse:
+            self.fail("check_reponse() raised an InvalidApiResponse exception")
+        # test check_response() with a bad checksum data, should be an InvalidChecksum exception
+        self.assertRaises(user.gw1000.InvalidChecksum,
+                          self.station.check_response,
+                          response=self.read_fware_resp_bad_checksum_bytes,
+                          cmd_code=self.cmd_read_fware_ver)
+        # test check_response() with a bad response, should be an InvalidApiResponse exception
+        self.assertRaises(user.gw1000.InvalidApiResponse,
+                          self.station.check_response,
+                          response=self.read_fware_resp_bad_cmd_bytes,
+                          cmd_code=self.cmd_read_fware_ver)
+
+
 class ParserTestCase(unittest.TestCase):
     """Test the Parser class."""
 
     response1 = {'raw': 1,
                  'payload': 2
-                }
+                 }
     response2 = {'raw': 1,
                  'payload': 2
-                }
+                 }
     cmd_broadcast = {'raw': 1,
                      'parsed': 2
                      }
@@ -123,9 +234,6 @@ class ParserTestCase(unittest.TestCase):
     parse_cmd_read_firmware_version = {'raw': 1,
                                        'parsed': 2
                                        }
-    cmd_read_ecowitt = {'raw': 1,
-                        'parsed': 2
-                        }
 
     def setUp(self):
         # get a Parser object
@@ -338,6 +446,7 @@ class SensorsStateTestCase(unittest.TestCase):
         self.assertEqual(self.parser.sen_state_obj.batt_volt(100), 2.00)
         self.assertEqual(self.parser.sen_state_obj.batt_volt(101), 2.02)
         self.assertEqual(self.parser.sen_state_obj.batt_volt(255), 5.1)
+
 
 class SensorsDataTestCase(unittest.TestCase):
     """Test the Parser.SensorsData class."""
@@ -663,17 +772,28 @@ class SensorsDataTestCase(unittest.TestCase):
         pass
 
         # test wh34 decode (method decode_wh34())
-        self.assertEqual(self.parser.sen_data_obj.decode_wh34(hex_to_bytes(self.wh34_data['hex']), field=self.wh34_data['field']), self.wh34_data['value'])
+        self.assertEqual(self.parser.sen_data_obj.decode_wh34(hex_to_bytes(self.wh34_data['hex']),
+                                                              field=self.wh34_data['field']),
+                         self.wh34_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_wh34(hex_to_bytes(xbytes(1)), field=self.wh34_data['field']), {})
-        self.assertEqual(self.parser.sen_data_obj.decode_wh34(hex_to_bytes(xbytes(4)), field=self.wh34_data['field']), {})
+        self.assertEqual(self.parser.sen_data_obj.decode_wh34(hex_to_bytes(xbytes(1)),
+                                                              field=self.wh34_data['field']),
+                         {})
+        self.assertEqual(self.parser.sen_data_obj.decode_wh34(hex_to_bytes(xbytes(4)),
+                                                              field=self.wh34_data['field']),
+                         {})
 
         # test wh45 decode (method decode_wh45())
-        self.assertEqual(self.parser.sen_data_obj.decode_wh45(hex_to_bytes(self.wh45_data['hex']), fields=self.wh45_data['field']),
+        self.assertEqual(self.parser.sen_data_obj.decode_wh45(hex_to_bytes(self.wh45_data['hex']),
+                                                              fields=self.wh45_data['field']),
                          self.wh45_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_wh45(hex_to_bytes(xbytes(1)), fields=self.wh45_data['field']), {})
-        self.assertEqual(self.parser.sen_data_obj.decode_wh45(hex_to_bytes(xbytes(17)), fields=self.wh45_data['field']), {})
+        self.assertEqual(self.parser.sen_data_obj.decode_wh45(hex_to_bytes(xbytes(1)),
+                                                              fields=self.wh45_data['field']),
+                         {})
+        self.assertEqual(self.parser.sen_data_obj.decode_wh45(hex_to_bytes(xbytes(17)),
+                                                              fields=self.wh45_data['field']),
+                         {})
 
         # test legacy decode battery (method decode_batt())
         # should return None no matter what we pass
@@ -766,57 +886,21 @@ class ListsAndDictsTestCase(unittest.TestCase):
     def test_dicts(self):
         """Test dicts for consistency."""
 
-        # test that each entry in the GW1000 default field map appears in the observation group dictionary
+        # test that each entry in the GW1000 default field map appears in the
+        # observation group dictionary
         for w_field, g_field in six.iteritems(self.default_field_map):
             self.assertIn(g_field,
                           user.gw1000.DirectGw1000.gw1000_obs_group_dict.keys(),
-                          msg="A field from the GW1000 default field map is missing from the observation group dictionary")
+                          msg="A field from the GW1000 default field map is missing "
+                              "from the observation group dictionary")
 
-        # test that each entry in the observation group dictionary is included in the GW1000 default field map
+        # test that each entry in the observation group dictionary is included
+        # in the GW1000 default field map
         for g_field, group in six.iteritems(user.gw1000.DirectGw1000.gw1000_obs_group_dict):
             self.assertIn(g_field,
                           self.default_field_map.values(),
-                          msg="A key from the observation group dictionary is missing from the GW1000 default field map")
-
-
-class StationTestCase(unittest.TestCase):
-
-    cmd_read_fware_ver = b'\x50'
-    read_fware_cmd_bytes = b'\xff\xffP\x03S'
-    read_fware_resp_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1v'
-    read_fware_resp_bad_checksum_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1w'
-    read_fware_resp_bad_cmd_bytes = b'\xff\xffQ\x11\rGW1000_V1.6.1v'
-
-    def setUp(self):
-
-        # get a Gw1000Collector Station object, specify phony ip, port and mac
-        # to prevent the GW1000 driver from actually looking for a GW1000
-        self.station = user.gw1000.Gw1000Collector.Station(ip_address='1.1.1.1',
-                                                           port=1234,
-                                                           mac='1:2:3:4:5:6')
-
-    def test_response(self):
-
-        # test checksum calculation
-        self.assertEqual(self.station.calc_checksum(b'00112233bbccddee'), 168)
-        # test check_response() with good data, should be no exception
-        try:
-            self.station.check_response(self.read_fware_resp_bytes,
-                                        self.cmd_read_fware_ver)
-        except user.gw1000.InvalidChecksum:
-            self.fail("check_reponse() raised an InvalidChecksum exception")
-        except user.gw1000.InvalidApiResponse:
-            self.fail("check_reponse() raised an InvalidApiResponse exception")
-        # test check_response() with a bad checksum data, should be an InvalidChecksum exception
-        self.assertRaises(user.gw1000.InvalidChecksum,
-                          self.station.check_response,
-                          response=self.read_fware_resp_bad_checksum_bytes,
-                          cmd_code=self.cmd_read_fware_ver)
-        # test check_response() with a bad response, should be an InvalidApiResponse exception
-        self.assertRaises(user.gw1000.InvalidApiResponse,
-                          self.station.check_response,
-                          response=self.read_fware_resp_bad_cmd_bytes,
-                          cmd_code=self.cmd_read_fware_ver)
+                          msg="A key from the observation group dictionary is missing "
+                              "from the GW1000 default field map")
 
 
 class Gw1000TestCase(unittest.TestCase):
