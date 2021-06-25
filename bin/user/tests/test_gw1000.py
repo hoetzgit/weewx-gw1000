@@ -342,8 +342,6 @@ class SensorsStateTestCase(unittest.TestCase):
 class SensorsDataTestCase(unittest.TestCase):
     """Test the Parser.SensorsData class."""
 
-    batt_fields = ('multi', 'wh31', 'wh51', 'wh57', 'wh68', 'ws80',
-                   'unused', 'wh41', 'wh55')
     response_struct = {
         b'\x01': ('decode_temp', 2, 'intemp'),
         b'\x02': ('decode_temp', 2, 'outtemp'),
@@ -520,22 +518,12 @@ class SensorsDataTestCase(unittest.TestCase):
         pass
 
     def test_constants(self):
-        """Test constants used by class Parser()."""
-
-        # test battery mask dicts
-
-        # multi_batt
-        self.assertEqual(self.parser.sen_data_obj.multi_batt['wh40']['mask'], 1 << 4)
-        self.assertEqual(self.parser.sen_data_obj.multi_batt['wh26']['mask'], 1 << 5)
-        self.assertEqual(self.parser.sen_data_obj.multi_batt['wh25']['mask'], 1 << 6)
-        self.assertEqual(self.parser.sen_data_obj.multi_batt['wh65']['mask'], 1 << 7)
+        """Test constants used by class Parser.SensorsData()."""
 
         # response_struct
         self.assertEqual(self.parser.sen_data_obj.response_struct, self.response_struct)
-
         # rain_field_codes
         self.assertEqual(self.parser.sen_data_obj.rain_field_codes, self.rain_field_codes)
-
         # wind_field_codes
         self.assertEqual(self.parser.sen_data_obj.wind_field_codes, self.wind_field_codes)
 
@@ -686,6 +674,10 @@ class SensorsDataTestCase(unittest.TestCase):
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.sen_data_obj.decode_wh45(hex_to_bytes(xbytes(1)), fields=self.wh45_data['field']), {})
         self.assertEqual(self.parser.sen_data_obj.decode_wh45(hex_to_bytes(xbytes(17)), fields=self.wh45_data['field']), {})
+
+        # test legacy decode battery (method decode_batt())
+        # should return None no matter what we pass
+        self.assertEqual(self.parser.sen_data_obj.decode_batt(hex_to_bytes(xbytes(0))), None)
 
         # test parsing of all possible sensors
         self.assertDictEqual(self.parser.parse(cmd='CMD_GW1000_LIVEDATA', raw_data=hex_to_bytes(self.response_data)),
