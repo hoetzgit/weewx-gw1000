@@ -3530,7 +3530,7 @@ class Parser(object):
         self.debug_rain = debug_rain
         self.debug_wind = debug_wind
         # get a SensorData object to parse sensor observation data
-        self.sen_data_obj = Parser.SensorData()
+        self.sensor_data_obj = Parser.SensorData()
         # get a SensorState object to parse sensor ID data
         self.sensor_state_obj = Parser.SensorState(show_battery=show_battery, is_wh24=is_wh24)
 
@@ -3876,7 +3876,8 @@ class Parser(object):
 
         # obtain the data payload
         data = self.get_payload(raw_data, size_bytes=2)
-        return self.sen_data_obj.parse_live_data(data)
+        loginf("data_=%s" % (self.sensor_data_obj.parse_live_data(data),))
+        return self.sensor_data_obj.parse_live_data(data)
 
     def parse_cmd_read_ssss(self, raw_data):
         """Parse response to CMD_READ_SSSS API call.
@@ -3896,7 +3897,7 @@ class Parser(object):
         # decode the data and store in a dict
         data_dict = {'frequency': six.indexbytes(data, 0),
                      'sensor_type': six.indexbytes(data, 1),
-                     'utc': self.sen_data_obj.decode_utc(data[2:6]),
+                     'utc': self.sensor_data_obj.decode_utc(data[2:6]),
                      'timezone_index': six.indexbytes(data, 6),
                      'dst_status': six.indexbytes(data, 7) != 0}
         return data_dict
@@ -3907,11 +3908,11 @@ class Parser(object):
         # obtain the data payload
         data = self.get_payload(raw_data)
         # decode the data and store in a dict
-        data_dict = {'rain_rate': self.sen_data_obj.decode_big_rain(data[0:4]),
-                     'rain_day': self.sen_data_obj.decode_big_rain(data[4:8]),
-                     'rain_week': self.sen_data_obj.decode_big_rain(data[8:12]),
-                     'rain_month': self.sen_data_obj.decode_big_rain(data[12:16]),
-                     'rain_year': self.sen_data_obj.decode_big_rain(data[16:20])}
+        data_dict = {'rain_rate': self.sensor_data_obj.decode_big_rain(data[0:4]),
+                     'rain_day': self.sensor_data_obj.decode_big_rain(data[4:8]),
+                     'rain_week': self.sensor_data_obj.decode_big_rain(data[8:12]),
+                     'rain_month': self.sensor_data_obj.decode_big_rain(data[12:16]),
+                     'rain_year': self.sensor_data_obj.decode_big_rain(data[16:20])}
         return data_dict
 
     def parse_cmd_read_gain(self, raw_data):
@@ -4784,7 +4785,7 @@ def obfuscate(plain, obf_char='*'):
 
     if plain is not None and len(plain) > 0:
         # obtain the number of the characters to be retained
-        stem = min(4, len(plain) // 2)
+        stem = min(4, len(plain) // 2) if len(plain) > 2 else 0
         if stem > 0:
             # we are retaining some characters so do a little string
             # manipulation
