@@ -101,7 +101,7 @@ class StationTestCase(unittest.TestCase):
         'CMD_SET_CO2_OFFSET': b'\x54'
     }
     header = b'\xff\xff'
-    cmd_broadcast_packet = 1
+    cmd_broadcast_packet = b'\xff\xff\x12\x03\x15'
     cmd_read_fware_ver = b'\x50'
     read_fware_cmd_bytes = b'\xff\xffP\x03S'
     read_fware_resp_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1v'
@@ -133,8 +133,8 @@ class StationTestCase(unittest.TestCase):
         # test building a valid command
         self.assertEqual(self.station.build_cmd_packet('CMD_BROADCAST'), self.cmd_broadcast_packet)
         # TODO. May be able to ditch this one
-        # test building a valid command with a user specified payload
-        self.assertEqual(self.station.build_cmd_packet('CMD_BROADCAST', payload=b'1234'), self.cmd_broadcast_packet)
+        # # test building a valid command with a user specified payload
+        # self.assertEqual(self.station.build_cmd_packet('CMD_BROADCAST', payload=b'1234'), self.cmd_broadcast_packet)
         # test building an invalid command, there should be an UnknownCommand exception
         self.assertRaises(user.gw1000.UnknownCommand,
                           self.station.build_cmd_packet,
@@ -150,9 +150,9 @@ class StationTestCase(unittest.TestCase):
             self.station.check_response(self.read_fware_resp_bytes,
                                         self.cmd_read_fware_ver)
         except user.gw1000.InvalidChecksum:
-            self.fail("check_reponse() raised an InvalidChecksum exception")
+            self.fail("test_check_response() raised an InvalidChecksum exception")
         except user.gw1000.InvalidApiResponse:
-            self.fail("check_reponse() raised an InvalidApiResponse exception")
+            self.fail("test_check_response() raised an InvalidApiResponse exception")
         # test check_response() with a bad checksum data, should be an InvalidChecksum exception
         self.assertRaises(user.gw1000.InvalidChecksum,
                           self.station.check_response,
@@ -168,50 +168,137 @@ class StationTestCase(unittest.TestCase):
 class ParserTestCase(unittest.TestCase):
     """Test the Parser class."""
 
-    response1 = {'raw': 1,
-                 'payload': 2
+    response1 = {'raw': "FF FF 26 09 DC 4F 22 58 B7 FF 8A",
+                 'payload': "DC 4F 22 58 B7 FF"
                  }
-    response2 = {'raw': 1,
-                 'payload': 2
+    response2 = {'raw': "FF FF 12 00 26 DC 4F 22 58 B7 FF C0 A8 02 1F AF C8 16 "
+                        "47 57 31 30 30 30 2D 57 49 46 49 42 37 46 46 20 56 31 "
+                        "2E 36 2E 38 DA",
+                 'payload': "DC 4F 22 58 B7 FF C0 A8 02 1F AF C8 16 47 57 31 30 "
+                            "30 30 2D 57 49 46 49 42 37 46 46 20 56 31 2E 36 2E 38"
                  }
-    cmd_broadcast = {'raw': 1,
-                     'parsed': 2
+    cmd_broadcast = {'raw': "FF FF 12 00 26 50 02 91 E3 FD 32 C0 A8 02 20 AF C8 "\
+                            "16 47 57 31 30 30 30 2D 57 49 46 49 46 44 33 32 20 "\
+                            "56 31 2E 36 2E 38 5F",
+                     'parsed': {'mac': '50:02:91:E3:FD:32',
+                                'ip_address': '192.168.2.32',
+                                'port': 45000,
+                                'ssid': 'GW1000-WIFIFD32 V1.6.8'}
                      }
-    cmd_read_ecowitt = {'raw': 1,
-                        'parsed': 2
+    cmd_read_ecowitt = {'raw': "FF FF 1E 04 01 23",
+                        'parsed': {'interval': 1}
                         }
-    parse_cmd_read_wunderground = {'raw': 1,
-                                   'parsed': 2
+    parse_cmd_read_wunderground = {'raw': "FF FF 20 16 08 61 62 63 64 65 66 67 "
+                                          "68 08 31 32 33 34 35 36 37 38 01 0F",
+                                   'parsed': {'id': 'abcdefgh',
+                                              'password': '12345678',
+                                              'fix': 1}
                                    }
-    parse_cmd_read_wow = {'raw': 1,
-                          'parsed': 2
+    parse_cmd_read_wow = {'raw': "FF FF 22 1E 07 77 6F 77 31 32 33 34 08 71 61 "
+                                 "7A 78 73 77 65 64 08 00 00 00 00 00 00 00 00 "
+                                 "01 F6",
+                          'parsed': {'id': 'wow1234',
+                                     'password': 'qazxswed',
+                                     'station_num': '\x00\x00\x00\x00\x00\x00\x00\x00',
+                                     'fix': 1}
                           }
-    parse_cmd_read_weathercloud = {'raw': 1,
-                                   'parsed': 2
+    parse_cmd_read_weathercloud = {'raw': "FF FF 24 16 08 71 77 65 72 74 79 75 "
+                                          "69 08 61 62 63 64 65 66 67 68 01 F9",
+                                   'parsed': {'id': 'qwertyui',
+                                              'key': 'abcdefgh',
+                                              'fix': 1}
                                    }
-    parse_cmd_read_customized = {'raw': 1,
-                                 'parsed': 2
+    parse_cmd_read_customized = {'raw': "FF FF 2A 27 06 31 32 33 34 35 36 08 61 "
+                                        "62 63 64 65 66 67 68 0D 31 39 32 2E 31 "
+                                        "36 38 2E 32 2E 32 32 30 1F 40 00 14 01 "
+                                        "01 C5",
+                                 'parsed': {'id': '123456',
+                                            'password': 'abcdefgh',
+                                            'server': '192.168.2.220',
+                                            'port': 8000,
+                                            'interval': 20,
+                                            'type': 1,
+                                            'active': 1}
                                  }
-    parse_cmd_read_usrpath = {'raw': 1,
-                              'parsed': 2
+    parse_cmd_read_usrpath = {'raw': "FF FF 51 57 29 2F 77 65 61 74 68 65 72 73 "
+                                     "74 61 74 69 6F 6E 2F 75 70 64 61 74 65 77 "
+                                     "65 61 74 68 65 72 73 74 61 74 69 6F 6E 2E "
+                                     "70 68 70 3F 29 2F 77 65 61 74 68 65 72 73 "
+                                     "74 61 74 69 6F 6E 2F 75 70 64 61 74 65 77 "
+                                     "65 61 74 68 65 72 73 74 61 74 69 6F 6E 2E "
+                                     "70 68 70 3F EE",
+                              'parsed': {'ecowitt_path': '/weatherstation/updateweatherstation.php?',
+                                         'wu_path': '/weatherstation/updateweatherstation.php?'}
                               }
     parse_cmd_get_soilhumiad = {'raw': 1,
                                 'parsed': 2
                                 }
-    parse_cmd_get_mulch_offset = {'raw': 1,
-                                  'parsed': 2
+    parse_cmd_get_mulch_offset = {'raw': "FF FF 2C 1B 00 00 00 01 00 00 02 00 "
+                                         "00 03 00 00 04 00 00 05 00 00 06 00 "
+                                         "00 07 00 00 63",
+                                  'parsed': {0: {'hum': 0, 'temp': 0.0},
+                                             1: {'hum': 0, 'temp': 0.0},
+                                             2: {'hum': 0, 'temp': 0.0},
+                                             3: {'hum': 0, 'temp': 0.0},
+                                             4: {'hum': 0, 'temp': 0.0},
+                                             5: {'hum': 0, 'temp': 0.0},
+                                             6: {'hum': 0, 'temp': 0.0},
+                                             7: {'hum': 0, 'temp': 0.0}
+                                             }
                                   }
-    parse_cmd_get_pm25_offset = {'raw': 1,
-                                 'parsed': 2
+    parse_cmd_get_pm25_offset = {'raw': "FF FF 2E 0F 00 00 34 01 FF E0 02 00 40 "
+                                        "03 FF A6 3B",
+                                 'parsed': {0: 5.2, 1: -3.2, 2: 6.4, 3: -9.0}
                                  }
-    parse_cmd_get_co2_offset = {'raw': 1,
-                                'parsed': 2
+    parse_cmd_get_co2_offset = {'raw': "FF FF 53 09 00 00 00 00 00 00 5C",
+                                'parsed': {'co2': 0, 'pm25': 0.0, 'pm10': 0.0}
                                 }
-    parse_cmd_read_station_mac = {'raw': 1,
-                                  'parsed': 2
+    parse_cmd_read_station_mac = {'raw': "FF FF 26 09 DC 4F 22 58 B7 FF 8A",
+                                  'parsed': {'mac': 'DC:4F:22:58:B7:FF'}
                                   }
-    parse_cmd_gw1000_livedata = {'raw': 1,
-                                 'parsed': 2
+    parse_cmd_gw1000_livedata = {'raw': "FF FF 3C 01 4D 00 FF FF FF FE FF 00 01 "
+                                        "FF FF FF FE FF 00 02 FF FF FF FE FF 00 "
+                                        "03 FF FF FF FE 1F 00 05 00 00 00 E4 00 "
+                                        "04 06 00 00 00 5B 00 04 07 00 00 00 BE "
+                                        "00 04 08 FF FF FF FE 00 00 09 FF FF FF "
+                                        "FE 00 00 0A FF FF FF FE 00 00 0B FF FF "
+                                        "FF FE 00 00 0C FF FF FF FE 00 00 0D FF "
+                                        "FF FF FE 00 00 0E 00 00 CB D1 0F 04 0F "
+                                        "00 00 CD 19 0F 04 10 00 00 CD 04 1F 00 "
+                                        "11 FF FF FF FE 1F 00 12 FF FF FF FE 1F "
+                                        "00 13 FF FF FF FE 1F 00 14 FF FF FF FE "
+                                        "1F 00 15 FF FF FF FE 1F 00 16 00 00 C4 "
+                                        "97 06 04 17 FF FF FF FE 0F 00 18 FF FF "
+                                        "FF FE 0F 00 19 FF FF FF FE 0F 00 1A 00 "
+                                        "00 D3 D3 04 04 1B FF FF FF FE 0F 00 1C "
+                                        "FF FF FF FE 0F 00 1D FF FF FF FE 0F 00 "
+                                        "1E FF FF FF FE 0F 00 1F FF FF FF FF FF "
+                                        "00 20 FF FF FF FE FF 00 21 FF FF FF FE "
+                                        "FF 00 22 FF FF FF FE FF 00 23 FF FF FF "
+                                        "FE FF 00 24 FF FF FF FE FF 00 25 FF FF "
+                                        "FF FE FF 00 26 FF FF FF FE FF 00 27 FF "
+                                        "FF FF FE 0F 00 28 FF FF FF FE FF 00 29 "
+                                        "FF FF FF FE FF 00 2A FF FF FF FE FF 00 "
+                                        "2B FF FF FF FE FF 00 2C FF FF FF FE FF "
+                                        "00 2D FF FF FF FE FF 00 2E FF FF FF FE "
+                                        "FF 00 2F FF FF FF FE FF 00 FF",
+                                 'parsed': {'intemp': 21.5, 'inhumid': 57,
+                                            'absbarometer': 1016.5, 'relbarometer': 1021.4,
+                                            'outtemp': 16.8, 'outhumid': 67, 'pm251': 6.0,
+                                            'pm251_24h_avg': 5.7, 'soilmoist1': 64,
+                                            'soilmoist2': 47, 'temp1': 19.6, 'humid1': 69,
+                                            'temp2': 16.8, 'humid2': 75, 'lightningcount': 0,
+                                            'lightningdettime': None, 'lightningdist': None,
+                                            'datetime': 1624689934, 'wh26_batt': 0,
+                                            'wh26_sig': 4, 'wh31_ch1_batt': 0,
+                                            'wh31_ch1_sig': 4, 'wh31_ch2_batt': 0,
+                                            'wh31_ch2_sig': 4, 'wh51_ch1_batt': 1,
+                                            'wh51_ch1_sig': 4, 'wh51_ch2_batt': 1,
+                                            'wh51_ch2_sig': 4, 'wh51_ch3_batt': None,
+                                            'wh51_ch3_sig': 0, 'wh41_ch1_batt': 6,
+                                            'wh41_ch1_sig': 4, 'wh57_batt': 4,
+                                            'wh57_sig': 4
+                                            }
                                  }
     parse_cmd_read_ssss = {'raw': 1,
                            'parsed': 2
@@ -231,8 +318,9 @@ class ParserTestCase(unittest.TestCase):
     parse_cmd_read_sensor_id_new = {'raw': 1,
                                     'parsed': 2
                                     }
-    parse_cmd_read_firmware_version = {'raw': 1,
-                                       'parsed': 2
+    parse_cmd_read_firmware_version = {'raw': "FF FF 50 11 0D 47 57 31 30 30 30 "
+                                              "5F 56 31 2E 36 2E 38 7D",
+                                       'parsed': {'firmware': 'GW1000_V1.6.8'}
                                        }
 
     def setUp(self):
@@ -247,72 +335,74 @@ class ParserTestCase(unittest.TestCase):
         """Test Parser.get_payload method."""
 
         # test a response where the size is stored in a single byte
-        self.assertEqual(self.parser.get_payload(self.response1['raw'], size_bytes=1), self.response1['payload'])
+        self.assertEqual(self.parser.get_payload(hex_to_bytes(self.response1['raw']), size_bytes=1),
+                         hex_to_bytes(self.response1['payload']))
         # test a response where the size is stored in two bytes
-        self.assertEqual(self.parser.get_payload(self.response2['raw'], size_bytes=2), self.response2['payload'])
+        self.assertEqual(self.parser.get_payload(hex_to_bytes(self.response2['raw']), size_bytes=2),
+                         hex_to_bytes(self.response2['payload']))
 
     def test_parse_cmds(self):
         """Test the Parser.parse_cmd_xxxxx() methods."""
 
         # test parse_cmd_broadcast()
-        self.assertEqual(self.parser.parse_cmd_broadcast(self.cmd_broadcast['raw']),
+        self.assertEqual(self.parser.parse_cmd_broadcast(hex_to_bytes(self.cmd_broadcast['raw'])),
                          self.cmd_broadcast['parsed'])
         # test cmd_read_ecowitt()
-        self.assertEqual(self.parser.cmd_read_ecowitt(self.cmd_read_ecowitt['raw']),
+        self.assertEqual(self.parser.parse_cmd_read_ecowitt(hex_to_bytes(self.cmd_read_ecowitt['raw'])),
                          self.cmd_read_ecowitt['parsed'])
         # test parse_cmd_read_wunderground()
-        self.assertEqual(self.parser.parse_cmd_read_wunderground(self.parse_cmd_read_wunderground['raw']),
+        self.assertEqual(self.parser.parse_cmd_read_wunderground(hex_to_bytes(self.parse_cmd_read_wunderground['raw'])),
                          self.parse_cmd_read_wunderground['parsed'])
         # test parse_cmd_read_wow()
-        self.assertEqual(self.parser.parse_cmd_read_wow(self.parse_cmd_read_wow['raw']),
+        self.assertEqual(self.parser.parse_cmd_read_wow(hex_to_bytes(self.parse_cmd_read_wow['raw'])),
                          self.parse_cmd_read_wow['parsed'])
         # test parse_cmd_read_weathercloud()
-        self.assertEqual(self.parser.parse_cmd_read_weathercloud(self.parse_cmd_read_weathercloud['raw']),
+        self.assertEqual(self.parser.parse_cmd_read_weathercloud(hex_to_bytes(self.parse_cmd_read_weathercloud['raw'])),
                          self.parse_cmd_read_weathercloud['parsed'])
         # test parse_cmd_read_customized()
-        self.assertEqual(self.parser.parse_cmd_read_customized(self.parse_cmd_read_customized['raw']),
+        self.assertEqual(self.parser.parse_cmd_read_customized(hex_to_bytes(self.parse_cmd_read_customized['raw'])),
                          self.parse_cmd_read_customized['parsed'])
         # test parse_cmd_read_usrpath()
-        self.assertEqual(self.parser.parse_cmd_read_usrpath(self.parse_cmd_read_usrpath['raw']),
+        self.assertEqual(self.parser.parse_cmd_read_usrpath(hex_to_bytes(self.parse_cmd_read_usrpath['raw'])),
                          self.parse_cmd_read_usrpath['parsed'])
         # test parse_cmd_get_soilhumiad()
-        self.assertEqual(self.parser.parse_cmd_get_soilhumiad(self.parse_cmd_get_soilhumiad['raw']),
-                         self.parse_cmd_get_soilhumiad['parsed'])
+#        self.assertEqual(self.parser.parse_cmd_get_soilhumiad(self.parse_cmd_get_soilhumiad['raw']),
+#                         self.parse_cmd_get_soilhumiad['parsed'])
         # test parse_cmd_get_mulch_offset()
-        self.assertEqual(self.parser.parse_cmd_get_mulch_offset(self.parse_cmd_get_mulch_offset['raw']),
+        self.assertEqual(self.parser.parse_cmd_get_mulch_offset(hex_to_bytes(self.parse_cmd_get_mulch_offset['raw'])),
                          self.parse_cmd_get_mulch_offset['parsed'])
         # test parse_cmd_get_pm25_offset()
-        self.assertEqual(self.parser.parse_cmd_get_pm25_offset(self.parse_cmd_get_pm25_offset['raw']),
+        self.assertEqual(self.parser.parse_cmd_get_pm25_offset(hex_to_bytes(self.parse_cmd_get_pm25_offset['raw'])),
                          self.parse_cmd_get_pm25_offset['parsed'])
         # test parse_cmd_get_co2_offset()
-        self.assertEqual(self.parser.parse_cmd_get_co2_offset(self.parse_cmd_get_co2_offset['raw']),
+        self.assertEqual(self.parser.parse_cmd_get_co2_offset(hex_to_bytes(self.parse_cmd_get_co2_offset['raw'])),
                          self.parse_cmd_get_co2_offset['parsed'])
         # test parse_cmd_read_station_mac()
-        self.assertEqual(self.parser.parse_cmd_read_station_mac(self.parse_cmd_read_station_mac['raw']),
+        self.assertEqual(self.parser.parse_cmd_read_station_mac(hex_to_bytes(self.parse_cmd_read_station_mac['raw'])),
                          self.parse_cmd_read_station_mac['parsed'])
         # test parse_cmd_gw1000_livedata()
-        self.assertEqual(self.parser.parse_cmd_gw1000_livedata(self.parse_cmd_gw1000_livedata['raw']),
-                         self.parse_cmd_gw1000_livedata['parsed'])
+#        self.assertEqual(self.parser.parse_cmd_gw1000_livedata(hex_to_bytes(self.parse_cmd_gw1000_livedata['raw'])),
+#                         self.parse_cmd_gw1000_livedata['parsed'])
         # test parse_cmd_read_ssss()
-        self.assertEqual(self.parser.parse_cmd_read_ssss(self.parse_cmd_read_ssss['raw']),
-                         self.parse_cmd_read_ssss['parsed'])
+#        self.assertEqual(self.parser.parse_cmd_read_ssss(self.parse_cmd_read_ssss['raw']),
+#                         self.parse_cmd_read_ssss['parsed'])
         # test parse_cmd_read_raindata()
-        self.assertEqual(self.parser.parse_cmd_read_raindata(self.parse_cmd_read_raindata['raw']),
-                         self.parse_cmd_read_raindata['parsed'])
+#        self.assertEqual(self.parser.parse_cmd_read_raindata(self.parse_cmd_read_raindata['raw']),
+#                         self.parse_cmd_read_raindata['parsed'])
         # test parse_cmd_read_gain()
-        self.assertEqual(self.parser.parse_cmd_read_gain(self.parse_cmd_read_gain['raw']),
-                         self.parse_cmd_read_gain['parsed'])
+#        self.assertEqual(self.parser.parse_cmd_read_gain(self.parse_cmd_read_gain['raw']),
+#                         self.parse_cmd_read_gain['parsed'])
         # test parse_cmd_read_calibration()
-        self.assertEqual(self.parser.parse_cmd_read_calibration(self.parse_cmd_read_calibration['raw']),
-                         self.parse_cmd_read_calibration['parsed'])
+#        self.assertEqual(self.parser.parse_cmd_read_calibration(self.parse_cmd_read_calibration['raw']),
+#                         self.parse_cmd_read_calibration['parsed'])
         # test parse_cmd_read_sensor_id()
-        self.assertEqual(self.parser.parse_cmd_read_sensor_id(self.parse_cmd_read_sensor_id['raw']),
-                         self.parse_cmd_read_sensor_id['parsed'])
+#        self.assertEqual(self.parser.parse_cmd_read_sensor_id(self.parse_cmd_read_sensor_id['raw']),
+#                         self.parse_cmd_read_sensor_id['parsed'])
         # test parse_cmd_read_sensor_id_new()
-        self.assertEqual(self.parser.parse_cmd_read_sensor_id_new(self.parse_cmd_read_sensor_id_new['raw']),
-                         self.parse_cmd_read_sensor_id_new['parsed'])
+#        self.assertEqual(self.parser.parse_cmd_read_sensor_id_new(self.parse_cmd_read_sensor_id_new['raw']),
+#                         self.parse_cmd_read_sensor_id_new['parsed'])
         # test parse_cmd_read_firmware_version()
-        self.assertEqual(self.parser.parse_cmd_read_firmware_version(self.parse_cmd_read_firmware_version['raw']),
+        self.assertEqual(self.parser.parse_cmd_read_firmware_version(hex_to_bytes(self.parse_cmd_read_firmware_version['raw'])),
                          self.parse_cmd_read_firmware_version['parsed'])
 
 
@@ -370,11 +460,47 @@ class SensorsStateTestCase(unittest.TestCase):
         b'\x2f': {'name': 'wh35_ch8', 'long_name': 'WH35 ch8', 'batt_fn': 'batt_volt'}
     }
     not_registered = ('fffffffe', 'ffffffff')
-    parse_sensor_id_data = {'raw': 1,
-                            'parsed': 2
+    parse_sensor_id_data = {'raw': "00 FF FF FF FE FF 00 05 00 00 00 E4 00 04 "
+                                   "0E 00 00 CB D1 0F 04 10 00 00 CD 04 1F 00 "
+                                   "1A 00 00 D3 D3 04 03 20 FF FF FF FE FF 00 ",
+                            'parsed': {b'\x00': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                                       b'\x05': {'id': '000000e4', 'battery': 0, 'signal': 4},
+                                       b'\x0e': {'id': '0000cbd1', 'battery': 1, 'signal': 4},
+                                       b'\x10': {'id': '0000cd04', 'battery': None, 'signal': 0},
+                                       b'\x1a': {'id': '0000d3d3', 'battery': 4, 'signal': 3},
+                                       b' ': {'id': 'fffffffe', 'battery': None, 'signal': 0}
+                                       }
                             }
-    get_sensor_state_packet = {'raw': 1,
-                               'parsed': 2
+    get_sensor_state_packet = {'raw': "FF FF 3C 01 4D 00 FF FF FF FE FF 00 01 FF "
+                                      "FF FF FE FF 00 02 FF FF FF FE FF 00 03 FF "
+                                      "FF FF FE 1F 00 05 00 00 00 E4 00 04 06 00 "
+                                      "00 00 5B 00 04 07 00 00 00 BE 00 04 08 FF "
+                                      "FF FF FE 00 00 09 FF FF FF FE 00 00 0A FF "
+                                      "FF FF FE 00 00 0B FF FF FF FE 00 00 0C FF "
+                                      "FF FF FE 00 00 0D FF FF FF FE 00 00 0E 00 "
+                                      "00 CB D1 0F 04 0F 00 00 CD 19 0F 04 10 00 "
+                                      "00 CD 04 1F 00 11 FF FF FF FE 1F 00 12 FF "
+                                      "FF FF FE 1F 00 13 FF FF FF FE 1F 00 14 FF "
+                                      "FF FF FE 1F 00 15 FF FF FF FE 1F 00 16 00 "
+                                      "00 C4 97 06 04 17 FF FF FF FE 0F 00 18 FF "
+                                      "FF FF FE 0F 00 19 FF FF FF FE 0F 00 1A 00 "
+                                      "00 D3 D3 04 04 1B FF FF FF FE 0F 00 1C FF "
+                                      "FF FF FE 0F 00 1D FF FF FF FE 0F 00 1E FF "
+                                      "FF FF FE 0F 00 1F FF FF FF FF FF 00 20 FF "
+                                      "FF FF FE FF 00 21 FF FF FF FE FF 00 22 FF "
+                                      "FF FF FE FF 00 23 FF FF FF FE FF 00 24 FF "
+                                      "FF FF FE FF 00 25 FF FF FF FE FF 00 26 FF "
+                                      "FF FF FE FF 00 27 FF FF FF FE 0F 00 28 FF "
+                                      "FF FF FE FF 00 29 FF FF FF FE FF 00 2A FF "
+                                      "FF FF FE FF 00 2B FF FF FF FE FF 00 2C FF "
+                                      "FF FF FE FF 00 2D FF FF FF FE FF 00 2E FF "
+                                      "FF FF FE FF 00 2F FF FF FF FE FF 00 FF",
+                               'parsed': {'wh26_batt': 0, 'wh26_sig': 4, 'wh31_ch1_batt': 0,
+                                          'wh31_ch1_sig': 4, 'wh31_ch2_batt': 0, 'wh31_ch2_sig': 4,
+                                          'wh51_ch1_batt': 1, 'wh51_ch1_sig': 4, 'wh51_ch2_batt': 1,
+                                          'wh51_ch2_sig': 4, 'wh51_ch3_batt': None, 'wh51_ch3_sig': 0,
+                                          'wh41_ch1_batt': 6, 'wh41_ch1_sig': 4, 'wh57_batt': 4,
+                                          'wh57_sig': 4}
                                }
 
     def setUp(self):
@@ -391,61 +517,61 @@ class SensorsStateTestCase(unittest.TestCase):
         """Test SensorsState class constants."""
 
         # sensor_ids
-        self.assertEqual(self.parser.sen_state_obj.sensor_ids, self.sensor_ids)
+        self.assertEqual(self.parser.sensor_state_obj.sensor_ids, self.sensor_ids)
         # not_registered
-        self.assertEqual(self.parser.sen_state_obj.not_registered, self.not_registered)
+        self.assertEqual(self.parser.sensor_state_obj.not_registered, self.not_registered)
 
     def test_parse_sensor_id_data(self):
         """Test parse_sensor_id_data() method."""
 
-        self.assertEqual(self.parser.sen_state_obj.parse_sensor_id_data['raw'],
+        self.assertEqual(self.parser.sensor_state_obj.parse_sensor_id_data(hex_to_bytes(self.parse_sensor_id_data['raw'])),
                          self.parse_sensor_id_data['parsed'])
 
     def test_get_sensor_state_packet(self):
         """Test get_sensor_state_packet() method."""
 
-        self.assertEqual(self.parser.sen_state_obj.get_sensor_state_packet['raw'],
+        self.assertEqual(self.parser.sensor_state_obj.get_sensor_state_packet(hex_to_bytes(self.get_sensor_state_packet['raw'])),
                          self.get_sensor_state_packet['parsed'])
 
     def test_battery_desc(self):
         """Test battery_desc() method."""
 
         # binary description
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x00', 0), 'OK')
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x00', 1), 'low')
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x00', 2), 'Unknown')
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x00', None), 'Unknown')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x00', 0), 'OK')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x00', 1), 'low')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x00', 2), 'Unknown')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x00', None), 'Unknown')
 
         # int description
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x16', 0), 'low')
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x16', 1), 'low')
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x16', 4), 'OK')
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x16', 6), 'DC')
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x16', 7), 'Unknown')
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x16', None), 'Unknown')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x16', 0), 'low')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x16', 1), 'low')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x16', 4), 'OK')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x16', 6), 'DC')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x16', 7), 'Unknown')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x16', None), 'Unknown')
 
         # voltage description
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x20', 0), 'low')
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x20', 1.2), 'low')
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x20', 1.5), 'OK')
-        self.assertEqual(self.parser.sen_state_obj.battery_desc(b'\x20', None), 'Unknown')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x20', 0), 'low')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x20', 1.2), 'low')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x20', 1.5), 'OK')
+        self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x20', None), 'Unknown')
 
     def test_battery_decode(self):
         """Test battery decode methods."""
 
         # binary battery states (method batt_binary())
-        self.assertEqual(self.parser.sen_state_obj.batt_binary(255), 1)
-        self.assertEqual(self.parser.sen_state_obj.batt_binary(4), 0)
+        self.assertEqual(self.parser.sensor_state_obj.batt_binary(255), 1)
+        self.assertEqual(self.parser.sensor_state_obj.batt_binary(4), 0)
 
         # integer battery states (method batt_int())
         for int_batt in range(7):
-            self.assertEqual(self.parser.sen_state_obj.batt_int(int_batt), int_batt)
+            self.assertEqual(self.parser.sensor_state_obj.batt_int(int_batt), int_batt)
 
         # voltage battery states (method batt_volt())
-        self.assertEqual(self.parser.sen_state_obj.batt_volt(0), 0.00)
-        self.assertEqual(self.parser.sen_state_obj.batt_volt(100), 2.00)
-        self.assertEqual(self.parser.sen_state_obj.batt_volt(101), 2.02)
-        self.assertEqual(self.parser.sen_state_obj.batt_volt(255), 5.1)
+        self.assertEqual(self.parser.sensor_state_obj.batt_volt(0), 0.00)
+        self.assertEqual(self.parser.sensor_state_obj.batt_volt(100), 2.00)
+        self.assertEqual(self.parser.sensor_state_obj.batt_volt(101), 2.02)
+        self.assertEqual(self.parser.sensor_state_obj.batt_volt(255), 5.1)
 
 
 class SensorsDataTestCase(unittest.TestCase):
@@ -630,140 +756,140 @@ class SensorsDataTestCase(unittest.TestCase):
         """Test constants used by class Parser.SensorsData()."""
 
         # response_struct
-        self.assertEqual(self.parser.sen_data_obj.response_struct, self.response_struct)
+        self.assertEqual(self.parser.sensor_data_obj.response_struct, self.response_struct)
         # rain_field_codes
-        self.assertEqual(self.parser.sen_data_obj.rain_field_codes, self.rain_field_codes)
+        self.assertEqual(self.parser.sensor_data_obj.rain_field_codes, self.rain_field_codes)
         # wind_field_codes
-        self.assertEqual(self.parser.sen_data_obj.wind_field_codes, self.wind_field_codes)
+        self.assertEqual(self.parser.sensor_data_obj.wind_field_codes, self.wind_field_codes)
 
     def test_decode(self):
         """Test class Parser() methods used to decode obs bytes."""
 
         # test temperature decode (method decode_temp())
-        self.assertEqual(self.parser.sen_data_obj.decode_temp(hex_to_bytes(self.temp_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_temp(hex_to_bytes(self.temp_data['hex'])),
                          self.temp_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_temp(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_temp(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_temp(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_temp(hex_to_bytes(xbytes(3))), None)
 
         # test humidity decode (method decode_humid())
-        self.assertEqual(self.parser.sen_data_obj.decode_humid(hex_to_bytes(self.humid_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_humid(hex_to_bytes(self.humid_data['hex'])),
                          self.humid_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_humid(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_humid(hex_to_bytes(xbytes(2))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_humid(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_humid(hex_to_bytes(xbytes(2))), None)
 
         # test pressure decode (method decode_press())
-        self.assertEqual(self.parser.sen_data_obj.decode_press(hex_to_bytes(self.press_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_press(hex_to_bytes(self.press_data['hex'])),
                          self.press_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_press(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_press(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_press(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_press(hex_to_bytes(xbytes(3))), None)
 
         # test direction decode (method decode_dir())
-        self.assertEqual(self.parser.sen_data_obj.decode_dir(hex_to_bytes(self.dir_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_dir(hex_to_bytes(self.dir_data['hex'])),
                          self.dir_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_dir(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_dir(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_dir(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_dir(hex_to_bytes(xbytes(3))), None)
 
         # test big rain decode (method decode_big_rain())
-        self.assertEqual(self.parser.sen_data_obj.decode_big_rain(hex_to_bytes(self.big_rain_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_big_rain(hex_to_bytes(self.big_rain_data['hex'])),
                          self.big_rain_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_big_rain(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_big_rain(hex_to_bytes(xbytes(5))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_big_rain(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_big_rain(hex_to_bytes(xbytes(5))), None)
 
         # test datetime decode (method decode_datetime())
-        self.assertEqual(self.parser.sen_data_obj.decode_datetime(hex_to_bytes(self.datetime_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_datetime(hex_to_bytes(self.datetime_data['hex'])),
                          self.datetime_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_datetime(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_datetime(hex_to_bytes(xbytes(7))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_datetime(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_datetime(hex_to_bytes(xbytes(7))), None)
 
         # test distance decode (method decode_distance())
-        self.assertEqual(self.parser.sen_data_obj.decode_distance(hex_to_bytes(self.distance_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_distance(hex_to_bytes(self.distance_data['hex'])),
                          self.distance_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_distance(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_distance(hex_to_bytes(xbytes(2))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_distance(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_distance(hex_to_bytes(xbytes(2))), None)
 
         # test utc decode (method decode_utc())
-        self.assertEqual(self.parser.sen_data_obj.decode_utc(hex_to_bytes(self.utc_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_utc(hex_to_bytes(self.utc_data['hex'])),
                          self.utc_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_utc(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_utc(hex_to_bytes(xbytes(5))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_utc(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_utc(hex_to_bytes(xbytes(5))), None)
 
         # test count decode (method decode_count())
-        self.assertEqual(self.parser.sen_data_obj.decode_count(hex_to_bytes(self.count_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_count(hex_to_bytes(self.count_data['hex'])),
                          self.count_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_count(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_count(hex_to_bytes(xbytes(5))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_count(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_count(hex_to_bytes(xbytes(5))), None)
 
         # test speed decode (method decode_speed())
-        self.assertEqual(self.parser.sen_data_obj.decode_speed(hex_to_bytes(self.speed_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_speed(hex_to_bytes(self.speed_data['hex'])),
                          self.speed_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_speed(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_speed(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_speed(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_speed(hex_to_bytes(xbytes(3))), None)
 
         # test rain decode (method decode_rain())
-        self.assertEqual(self.parser.sen_data_obj.decode_rain(hex_to_bytes(self.rain_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_rain(hex_to_bytes(self.rain_data['hex'])),
                          self.rain_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_rain(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_rain(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_rain(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_rain(hex_to_bytes(xbytes(3))), None)
 
         # test rain rate decode (method decode_rainrate())
-        self.assertEqual(self.parser.sen_data_obj.decode_rainrate(hex_to_bytes(self.rainrate_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_rainrate(hex_to_bytes(self.rainrate_data['hex'])),
                          self.rainrate_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_rainrate(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_rainrate(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_rainrate(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_rainrate(hex_to_bytes(xbytes(3))), None)
 
         # test light decode (method decode_light())
-        self.assertEqual(self.parser.sen_data_obj.decode_light(hex_to_bytes(self.light_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_light(hex_to_bytes(self.light_data['hex'])),
                          self.light_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_light(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_light(hex_to_bytes(xbytes(5))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_light(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_light(hex_to_bytes(xbytes(5))), None)
 
         # test uv decode (method decode_uv())
-        self.assertEqual(self.parser.sen_data_obj.decode_uv(hex_to_bytes(self.uv_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_uv(hex_to_bytes(self.uv_data['hex'])),
                          self.uv_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_uv(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_uv(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_uv(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_uv(hex_to_bytes(xbytes(3))), None)
 
         # test uvi decode (method decode_uvi())
-        self.assertEqual(self.parser.sen_data_obj.decode_uvi(hex_to_bytes(self.uvi_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_uvi(hex_to_bytes(self.uvi_data['hex'])),
                          self.uvi_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_uvi(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_uvi(hex_to_bytes(xbytes(2))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_uvi(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_uvi(hex_to_bytes(xbytes(2))), None)
 
         # test moisture decode (method decode_moist())
-        self.assertEqual(self.parser.sen_data_obj.decode_moist(hex_to_bytes(self.moist_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_moist(hex_to_bytes(self.moist_data['hex'])),
                          self.moist_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_moist(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_moist(hex_to_bytes(xbytes(2))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_moist(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_moist(hex_to_bytes(xbytes(2))), None)
 
         # test pm25 decode (method decode_pm25())
-        self.assertEqual(self.parser.sen_data_obj.decode_pm25(hex_to_bytes(self.pm25_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_pm25(hex_to_bytes(self.pm25_data['hex'])),
                          self.pm25_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_pm25(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_pm25(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_pm25(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_pm25(hex_to_bytes(xbytes(3))), None)
 
         # test leak decode (method decode_leak())
-        self.assertEqual(self.parser.sen_data_obj.decode_leak(hex_to_bytes(self.leak_data['hex'])),
+        self.assertEqual(self.parser.sensor_data_obj.decode_leak(hex_to_bytes(self.leak_data['hex'])),
                          self.leak_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_leak(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.sen_data_obj.decode_leak(hex_to_bytes(xbytes(2))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_leak(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_leak(hex_to_bytes(xbytes(2))), None)
 
         # test wh34 decode (method decode_pm10())
         pass
@@ -772,32 +898,32 @@ class SensorsDataTestCase(unittest.TestCase):
         pass
 
         # test wh34 decode (method decode_wh34())
-        self.assertEqual(self.parser.sen_data_obj.decode_wh34(hex_to_bytes(self.wh34_data['hex']),
-                                                              field=self.wh34_data['field']),
+        self.assertEqual(self.parser.sensor_data_obj.decode_wh34(hex_to_bytes(self.wh34_data['hex']),
+                                                                 field=self.wh34_data['field']),
                          self.wh34_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_wh34(hex_to_bytes(xbytes(1)),
-                                                              field=self.wh34_data['field']),
+        self.assertEqual(self.parser.sensor_data_obj.decode_wh34(hex_to_bytes(xbytes(1)),
+                                                                 field=self.wh34_data['field']),
                          {})
-        self.assertEqual(self.parser.sen_data_obj.decode_wh34(hex_to_bytes(xbytes(4)),
-                                                              field=self.wh34_data['field']),
+        self.assertEqual(self.parser.sensor_data_obj.decode_wh34(hex_to_bytes(xbytes(4)),
+                                                                 field=self.wh34_data['field']),
                          {})
 
         # test wh45 decode (method decode_wh45())
-        self.assertEqual(self.parser.sen_data_obj.decode_wh45(hex_to_bytes(self.wh45_data['hex']),
-                                                              fields=self.wh45_data['field']),
+        self.assertEqual(self.parser.sensor_data_obj.decode_wh45(hex_to_bytes(self.wh45_data['hex']),
+                                                                 fields=self.wh45_data['field']),
                          self.wh45_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.sen_data_obj.decode_wh45(hex_to_bytes(xbytes(1)),
-                                                              fields=self.wh45_data['field']),
+        self.assertEqual(self.parser.sensor_data_obj.decode_wh45(hex_to_bytes(xbytes(1)),
+                                                                 fields=self.wh45_data['field']),
                          {})
-        self.assertEqual(self.parser.sen_data_obj.decode_wh45(hex_to_bytes(xbytes(17)),
-                                                              fields=self.wh45_data['field']),
+        self.assertEqual(self.parser.sensor_data_obj.decode_wh45(hex_to_bytes(xbytes(17)),
+                                                                 fields=self.wh45_data['field']),
                          {})
 
         # test legacy decode battery (method decode_batt())
         # should return None no matter what we pass
-        self.assertEqual(self.parser.sen_data_obj.decode_batt(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.sensor_data_obj.decode_batt(hex_to_bytes(xbytes(0))), None)
 
         # test parsing of all possible sensors
         self.assertDictEqual(self.parser.parse(cmd='CMD_GW1000_LIVEDATA', raw_data=hex_to_bytes(self.response_data)),
