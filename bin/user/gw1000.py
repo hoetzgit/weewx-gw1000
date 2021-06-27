@@ -3876,7 +3876,6 @@ class Parser(object):
 
         # obtain the data payload
         data = self.get_payload(raw_data, size_bytes=2)
-        loginf("data_=%s" % (self.sensor_data_obj.parse_live_data(data),))
         return self.sensor_data_obj.parse_live_data(data)
 
     def parse_cmd_read_ssss(self, raw_data):
