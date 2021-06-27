@@ -120,7 +120,7 @@ class StationTestCase(unittest.TestCase):
         pass
 
     def test_constants(self):
-        """Test class Station() constants."""
+        """... Test class Station() constants"""
 
         # commands
         self.assertEqual(self.station.commands, self.commands)
@@ -128,7 +128,7 @@ class StationTestCase(unittest.TestCase):
         self.assertEqual(self.station.header, self.header)
 
     def test_build_cmd_packet(self):
-        """Test build_cmd_packet() method."""
+        """... Test class Station() build command packet method"""
 
         # test building a valid command
         self.assertEqual(self.station.build_cmd_packet('CMD_BROADCAST'), self.cmd_broadcast_packet)
@@ -141,7 +141,7 @@ class StationTestCase(unittest.TestCase):
                           cmd='CMD_FAKE')
 
     def test_check_response(self):
-        """Test the check_response() and calc_checksum() methods."""
+        """... Test class Station() check response and calculate checksum methods"""
 
         # test calc_checksum()
         self.assertEqual(self.station.calc_checksum(b'00112233bbccddee'), 168)
@@ -177,8 +177,8 @@ class ParserTestCase(unittest.TestCase):
                  'payload': "DC 4F 22 58 B7 FF C0 A8 02 1F AF C8 16 47 57 31 30 "
                             "30 30 2D 57 49 46 49 42 37 46 46 20 56 31 2E 36 2E 38"
                  }
-    cmd_broadcast = {'raw': "FF FF 12 00 26 50 02 91 E3 FD 32 C0 A8 02 20 AF C8 "\
-                            "16 47 57 31 30 30 30 2D 57 49 46 49 46 44 33 32 20 "\
+    cmd_broadcast = {'raw': "FF FF 12 00 26 50 02 91 E3 FD 32 C0 A8 02 20 AF C8 "
+                            "16 47 57 31 30 30 30 2D 57 49 46 49 46 44 33 32 20 "
                             "56 31 2E 36 2E 38 5F",
                      'parsed': {'mac': '50:02:91:E3:FD:32',
                                 'ip_address': '192.168.2.32',
@@ -332,7 +332,7 @@ class ParserTestCase(unittest.TestCase):
         pass
 
     def test_get_payload(self):
-        """Test Parser.get_payload method."""
+        """... Test class Parser() get payload method"""
 
         # test a response where the size is stored in a single byte
         self.assertEqual(self.parser.get_payload(hex_to_bytes(self.response1['raw']), size_bytes=1),
@@ -342,7 +342,7 @@ class ParserTestCase(unittest.TestCase):
                          hex_to_bytes(self.response2['payload']))
 
     def test_parse_cmds(self):
-        """Test the Parser.parse_cmd_xxxxx() methods."""
+        """... Test class Parser() parse command methods"""
 
         # test parse_cmd_broadcast()
         self.assertEqual(self.parser.parse_cmd_broadcast(hex_to_bytes(self.cmd_broadcast['raw'])),
@@ -406,7 +406,7 @@ class ParserTestCase(unittest.TestCase):
                          self.parse_cmd_read_firmware_version['parsed'])
 
 
-class SensorsStateTestCase(unittest.TestCase):
+class SensorStateTestCase(unittest.TestCase):
     """Test the Parser.SensorsState class."""
 
     sensor_ids = {
@@ -471,37 +471,28 @@ class SensorsStateTestCase(unittest.TestCase):
                                        b' ': {'id': 'fffffffe', 'battery': None, 'signal': 0}
                                        }
                             }
-    get_sensor_state_packet = {'raw': "FF FF 3C 01 4D 00 FF FF FF FE FF 00 01 FF "
-                                      "FF FF FE FF 00 02 FF FF FF FE FF 00 03 FF "
-                                      "FF FF FE 1F 00 05 00 00 00 E4 00 04 06 00 "
-                                      "00 00 5B 00 04 07 00 00 00 BE 00 04 08 FF "
-                                      "FF FF FE 00 00 09 FF FF FF FE 00 00 0A FF "
-                                      "FF FF FE 00 00 0B FF FF FF FE 00 00 0C FF "
-                                      "FF FF FE 00 00 0D FF FF FF FE 00 00 0E 00 "
-                                      "00 CB D1 0F 04 0F 00 00 CD 19 0F 04 10 00 "
-                                      "00 CD 04 1F 00 11 FF FF FF FE 1F 00 12 FF "
-                                      "FF FF FE 1F 00 13 FF FF FF FE 1F 00 14 FF "
-                                      "FF FF FE 1F 00 15 FF FF FF FE 1F 00 16 00 "
-                                      "00 C4 97 06 04 17 FF FF FF FE 0F 00 18 FF "
-                                      "FF FF FE 0F 00 19 FF FF FF FE 0F 00 1A 00 "
-                                      "00 D3 D3 04 04 1B FF FF FF FE 0F 00 1C FF "
-                                      "FF FF FE 0F 00 1D FF FF FF FE 0F 00 1E FF "
-                                      "FF FF FE 0F 00 1F FF FF FF FF FF 00 20 FF "
-                                      "FF FF FE FF 00 21 FF FF FF FE FF 00 22 FF "
-                                      "FF FF FE FF 00 23 FF FF FF FE FF 00 24 FF "
-                                      "FF FF FE FF 00 25 FF FF FF FE FF 00 26 FF "
-                                      "FF FF FE FF 00 27 FF FF FF FE 0F 00 28 FF "
-                                      "FF FF FE FF 00 29 FF FF FF FE FF 00 2A FF "
-                                      "FF FF FE FF 00 2B FF FF FF FE FF 00 2C FF "
-                                      "FF FF FE FF 00 2D FF FF FF FE FF 00 2E FF "
-                                      "FF FF FE FF 00 2F FF FF FF FE FF 00 FF",
-                               'parsed': {'wh26_batt': 0, 'wh26_sig': 4, 'wh31_ch1_batt': 0,
-                                          'wh31_ch1_sig': 4, 'wh31_ch2_batt': 0, 'wh31_ch2_sig': 4,
-                                          'wh51_ch1_batt': 1, 'wh51_ch1_sig': 4, 'wh51_ch2_batt': 1,
-                                          'wh51_ch2_sig': 4, 'wh51_ch3_batt': None, 'wh51_ch3_sig': 0,
-                                          'wh41_ch1_batt': 6, 'wh41_ch1_sig': 4, 'wh57_batt': 4,
-                                          'wh57_sig': 4}
-                               }
+    get_sensor_state_packet = {
+        'raw': {
+            b'\x00': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+            b'\x05': {'id': '000000e4', 'battery': 0, 'signal': 4},
+            b'\x06': {'id': '0000005b', 'battery': 0, 'signal': 4},
+            b'\x07': {'id': '000000be', 'battery': 0, 'signal': 4},
+            b'\x08': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+            b'\x0e': {'id': '0000cbd1', 'battery': 1, 'signal': 4},
+            b'\x0f': {'id': '0000cd19', 'battery': 1, 'signal': 4},
+            b'\x10': {'id': '0000cd04', 'battery': None, 'signal': 0},
+            b'\x16': {'id': '0000c497', 'battery': 6, 'signal': 4},
+            b'\x1a': {'id': '0000d3d3', 'battery': 4, 'signal': 4}
+        },
+        'parsed': {
+            'wh26_batt': 0, 'wh26_sig': 4, 'wh31_ch1_batt': 0,
+            'wh31_ch1_sig': 4, 'wh31_ch2_batt': 0, 'wh31_ch2_sig': 4,
+            'wh51_ch1_batt': 1, 'wh51_ch1_sig': 4, 'wh51_ch2_batt': 1,
+            'wh51_ch2_sig': 4, 'wh51_ch3_batt': None, 'wh51_ch3_sig': 0,
+            'wh41_ch1_batt': 6, 'wh41_ch1_sig': 4, 'wh57_batt': 4,
+            'wh57_sig': 4
+        }
+    }
 
     def setUp(self):
 
@@ -514,7 +505,7 @@ class SensorsStateTestCase(unittest.TestCase):
         pass
 
     def test_constants(self):
-        """Test SensorsState class constants."""
+        """... Test class Parser.SensorState() constants"""
 
         # sensor_ids
         self.assertEqual(self.parser.sensor_state_obj.sensor_ids, self.sensor_ids)
@@ -522,19 +513,19 @@ class SensorsStateTestCase(unittest.TestCase):
         self.assertEqual(self.parser.sensor_state_obj.not_registered, self.not_registered)
 
     def test_parse_sensor_id_data(self):
-        """Test parse_sensor_id_data() method."""
+        """... Test class Parser.SensorState() parse sensor ID data method"""
 
         self.assertEqual(self.parser.sensor_state_obj.parse_sensor_id_data(hex_to_bytes(self.parse_sensor_id_data['raw'])),
                          self.parse_sensor_id_data['parsed'])
 
     def test_get_sensor_state_packet(self):
-        """Test get_sensor_state_packet() method."""
+        """... Test class Parser.SensorState() get sensor state method"""
 
-        self.assertEqual(self.parser.sensor_state_obj.get_sensor_state_packet(hex_to_bytes(self.get_sensor_state_packet['raw'])),
+        self.assertEqual(self.parser.sensor_state_obj.get_sensor_state_packet(self.get_sensor_state_packet['raw']),
                          self.get_sensor_state_packet['parsed'])
 
     def test_battery_desc(self):
-        """Test battery_desc() method."""
+        """... Test class Parser.SensorState() battery state description method"""
 
         # binary description
         self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x00', 0), 'OK')
@@ -557,7 +548,7 @@ class SensorsStateTestCase(unittest.TestCase):
         self.assertEqual(self.parser.sensor_state_obj.battery_desc(b'\x20', None), 'Unknown')
 
     def test_battery_decode(self):
-        """Test battery decode methods."""
+        """... Test class Parser.SensorState() battery state decode methods"""
 
         # binary battery states (method batt_binary())
         self.assertEqual(self.parser.sensor_state_obj.batt_binary(255), 1)
@@ -574,8 +565,8 @@ class SensorsStateTestCase(unittest.TestCase):
         self.assertEqual(self.parser.sensor_state_obj.batt_volt(255), 5.1)
 
 
-class SensorsDataTestCase(unittest.TestCase):
-    """Test the Parser.SensorsData class."""
+class SensorDataTestCase(unittest.TestCase):
+    """Test the Parser.SensorData class."""
 
     response_struct = {
         b'\x01': ('decode_temp', 2, 'intemp'),
@@ -712,8 +703,7 @@ class SensorsDataTestCase(unittest.TestCase):
                        'humid2': 58,
                        'lightningcount': 0,
                        'lightningdettime': None,
-                       'lightningdist': None,
-                       'datetime': 1599021263}
+                       'lightningdist': None}
     temp_data = {'hex': '00 EA', 'value': 23.4}
     humid_data = {'hex': '48', 'value': 72}
     press_data = {'hex': '27 4C', 'value': 1006.0}
@@ -753,7 +743,7 @@ class SensorsDataTestCase(unittest.TestCase):
         pass
 
     def test_constants(self):
-        """Test constants used by class Parser.SensorsData()."""
+        """... Test class Parser.SensorsData() constants for consistency"""
 
         # response_struct
         self.assertEqual(self.parser.sensor_data_obj.response_struct, self.response_struct)
@@ -763,7 +753,7 @@ class SensorsDataTestCase(unittest.TestCase):
         self.assertEqual(self.parser.sensor_data_obj.wind_field_codes, self.wind_field_codes)
 
     def test_decode(self):
-        """Test class Parser() methods used to decode obs bytes."""
+        """... Test class Parser() obs decode methods"""
 
         # test temperature decode (method decode_temp())
         self.assertEqual(self.parser.sensor_data_obj.decode_temp(hex_to_bytes(self.temp_data['hex'])),
@@ -950,6 +940,7 @@ class UtilitiesTestCase(unittest.TestCase):
     bytes_to_hex_fail_str = "cannot represent '%s' as hexadecimal bytes"
 
     def test_utilities(self):
+        """... Test utility functions"""
 
         # test natural_sort_keys()
         self.assertEqual(user.gw1000.natural_sort_keys(self.unsorted_dict),
@@ -1010,7 +1001,7 @@ class ListsAndDictsTestCase(unittest.TestCase):
         self.default_field_map = default_field_map
 
     def test_dicts(self):
-        """Test dicts for consistency."""
+        """... Test class Gw1000() dictionary constants for consistency"""
 
         # test that each entry in the GW1000 default field map appears in the
         # observation group dictionary
