@@ -192,7 +192,7 @@ class ParserTestCase(unittest.TestCase):
             'raw': "FF FF 1E 04 01 23",
             'parsed': {'interval': 1}
         },
-        'parse_cmd_read_wunderground': {
+        'cmd_read_wunderground': {
             'raw': "FF FF 20 16 08 61 62 63 64 65 66 67 68 08 31 32 33 34 35 36 "
                    "37 38 01 0F",
             'parsed': {'id': 'abcdefgh',
@@ -200,7 +200,7 @@ class ParserTestCase(unittest.TestCase):
                        'fix': 1
                        }
         },
-        'parse_cmd_read_wow': {
+        'cmd_read_wow': {
             'raw': "FF FF 22 1E 07 77 6F 77 31 32 33 34 08 71 61 7A 78 73 77 65 "
                    "64 08 00 00 00 00 00 00 00 00 01 F6",
             'parsed': {'id': 'wow1234',
@@ -209,7 +209,7 @@ class ParserTestCase(unittest.TestCase):
                        'fix': 1
                        }
         },
-        'parse_cmd_read_weathercloud': {
+        'cmd_read_weathercloud': {
             'raw': "FF FF 24 16 08 71 77 65 72 74 79 75 69 08 61 62 63 64 65 66 "
                    "67 68 01 F9",
             'parsed': {'id': 'qwertyui',
@@ -217,7 +217,7 @@ class ParserTestCase(unittest.TestCase):
                        'fix': 1
                        }
         },
-        'parse_cmd_read_customized': {
+        'cmd_read_customized': {
             'raw': "FF FF 2A 27 06 31 32 33 34 35 36 08 61 62 63 64 65 66 67 68 "
                    "0D 31 39 32 2E 31 36 38 2E 32 2E 32 32 30 1F 40 00 14 01 01 "
                    "C5",
@@ -230,7 +230,7 @@ class ParserTestCase(unittest.TestCase):
                        'active': 1
                        }
         },
-        'parse_cmd_read_usrpath': {
+        'cmd_read_usrpath': {
             'raw': "FF FF 51 57 29 2F 77 65 61 74 68 65 72 73 74 61 74 69 6F 6E "
                    "2F 75 70 64 61 74 65 77 65 61 74 68 65 72 73 74 61 74 69 6F "
                    "6E 2E 70 68 70 3F 29 2F 77 65 61 74 68 65 72 73 74 61 74 69 "
@@ -244,7 +244,7 @@ class ParserTestCase(unittest.TestCase):
         #     'raw': 1,
         #     'parsed': 2
         # },
-        'parse_cmd_get_mulch_offset': {
+        'cmd_get_mulch_offset': {
             'raw': "FF FF 2C 1B 00 00 00 01 00 00 02 00 00 03 00 00 04 00 00 05 "
                    "00 00 06 00 00 07 00 00 63",
             'parsed': {0: {'hum': 0, 'temp': 0.0},
@@ -257,19 +257,19 @@ class ParserTestCase(unittest.TestCase):
                        7: {'hum': 0, 'temp': 0.0}
                        }
         },
-        'parse_cmd_get_pm25_offset': {
+        'cmd_get_pm25_offset': {
             'raw': "FF FF 2E 0F 00 00 34 01 FF E0 02 00 40 03 FF A6 3B",
             'parsed': {0: 5.2, 1: -3.2, 2: 6.4, 3: -9.0}
         },
-        'parse_cmd_get_co2_offset': {
+        'cmd_get_co2_offset': {
             'raw': "FF FF 53 09 00 00 00 00 00 00 5C",
             'parsed': {'co2': 0, 'pm25': 0.0, 'pm10': 0.0}
         },
-        'parse_cmd_read_station_mac': {
+        'cmd_read_station_mac': {
             'raw': "FF FF 26 09 DC 4F 22 58 B7 FF 8A",
             'parsed': {'mac': 'DC:4F:22:58:B7:FF'}
         },
-        # 'parse_cmd_gw1000_livedata': {
+        # 'cmd_gw1000_livedata': {
         #     'raw': "FF FF 3C 01 4D 00 FF FF FF FE FF 00 01 FF FF FF FE FF 00 "
         #            "02 FF FF FF FE FF 00 03 FF FF FF FE 1F 00 05 00 00 00 E4 00 04 "
         #            "06 00 00 00 5B 00 04 07 00 00 00 BE 00 04 08 FF FF FF FE 00 00 "
@@ -300,31 +300,31 @@ class ParserTestCase(unittest.TestCase):
         #                'wh41_ch1_sig': 4, 'wh57_batt': 4, 'wh57_sig': 4
         #                }
         # },
-        # 'parse_cmd_read_ssss': {
+        # 'cmd_read_ssss': {
         #     'raw': 1,
         #     'parsed': 2
         # },
-        # 'parse_cmd_read_raindata': {
+        # 'cmd_read_raindata': {
         #     'raw': 1,
         #     'parsed': 2
         # },
-        # 'parse_cmd_read_gain': {
+        # 'cmd_read_gain': {
         #     'raw': 1,
         #     'parsed': 2
         # },
-        # 'parse_cmd_read_calibration': {
+        # 'cmd_read_calibration': {
         #     'raw': 1,
         #     'parsed': 2
         # },
-        # 'parse_cmd_read_sensor_id': {
+        # 'cmd_read_sensor_id': {
         #     'raw': 1,
         #     'parsed': 2
         # },
-        # 'parse_cmd_read_sensor_id_new': {
+        # 'cmd_read_sensor_id_new': {
         #     'raw': 1,
         #     'parsed': 2
         # },
-        'parse_cmd_read_firmware_version': {
+        'cmd_read_firmware_version': {
             'raw': "FF FF 50 11 0D 47 57 31 30 30 30 5F 56 31 2E 36 2E 38 7D",
             'parsed': {'firmware': 'GW1000_V1.6.8'}
         }
@@ -338,7 +338,7 @@ class ParserTestCase(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_get_payload(self):
+    def test10_get_payload(self):
         """... Test class Parser() get payload method"""
 
         # test a response where the size is stored in a single byte
@@ -348,78 +348,31 @@ class ParserTestCase(unittest.TestCase):
         self.assertEqual(self.parser.get_payload(hex_to_bytes(self.response2['raw']), size_bytes=2),
                          hex_to_bytes(self.response2['payload']))
 
-    def test_parse(self):
-        """... Test class Parser() parse method"""
+    def test20_parse_cmds(self):
+        """... Test class Parser() parse command methods
 
+        This test tests the parse_xxxx methods only, test30_parse() performs an
+        end to end test of the parse() method.
+        """
 
-    def test_parse_cmds(self):
-        """... Test class Parser() parse command methods"""
-
+        # iterate over the available parse_cmd test data entries
         for case, data in six.iteritems(self.parse_data):
-            self.assertEqual(self.parser.getattr(case)(hex_to_bytes(data['raw'])),
+            # check the parse_xxxx method applicable ot each piece of test data
+            self.assertEqual(getattr(self.parser, "_".join(['parse', case]))(hex_to_bytes(data['raw'])),
                              data['parsed'])
 
-#         # test parse_cmd_broadcast()
-#         self.assertEqual(self.parser.parse_cmd_broadcast(hex_to_bytes(self.cmd_broadcast['raw'])),
-#                          self.cmd_broadcast['parsed'])
-#         # test cmd_read_ecowitt()
-#         self.assertEqual(self.parser.parse_cmd_read_ecowitt(hex_to_bytes(self.cmd_read_ecowitt['raw'])),
-#                          self.cmd_read_ecowitt['parsed'])
-#         # test parse_cmd_read_wunderground()
-#         self.assertEqual(self.parser.parse_cmd_read_wunderground(hex_to_bytes(self.parse_cmd_read_wunderground['raw'])),
-#                          self.parse_cmd_read_wunderground['parsed'])
-#         # test parse_cmd_read_wow()
-#         self.assertEqual(self.parser.parse_cmd_read_wow(hex_to_bytes(self.parse_cmd_read_wow['raw'])),
-#                          self.parse_cmd_read_wow['parsed'])
-#         # test parse_cmd_read_weathercloud()
-#         self.assertEqual(self.parser.parse_cmd_read_weathercloud(hex_to_bytes(self.parse_cmd_read_weathercloud['raw'])),
-#                          self.parse_cmd_read_weathercloud['parsed'])
-#         # test parse_cmd_read_customized()
-#         self.assertEqual(self.parser.parse_cmd_read_customized(hex_to_bytes(self.parse_cmd_read_customized['raw'])),
-#                          self.parse_cmd_read_customized['parsed'])
-#         # test parse_cmd_read_usrpath()
-#         self.assertEqual(self.parser.parse_cmd_read_usrpath(hex_to_bytes(self.parse_cmd_read_usrpath['raw'])),
-#                          self.parse_cmd_read_usrpath['parsed'])
-#         # test parse_cmd_get_soilhumiad()
-# #        self.assertEqual(self.parser.parse_cmd_get_soilhumiad(self.parse_cmd_get_soilhumiad['raw']),
-# #                         self.parse_cmd_get_soilhumiad['parsed'])
-#         # test parse_cmd_get_mulch_offset()
-#         self.assertEqual(self.parser.parse_cmd_get_mulch_offset(hex_to_bytes(self.parse_cmd_get_mulch_offset['raw'])),
-#                          self.parse_cmd_get_mulch_offset['parsed'])
-#         # test parse_cmd_get_pm25_offset()
-#         self.assertEqual(self.parser.parse_cmd_get_pm25_offset(hex_to_bytes(self.parse_cmd_get_pm25_offset['raw'])),
-#                          self.parse_cmd_get_pm25_offset['parsed'])
-#         # test parse_cmd_get_co2_offset()
-#         self.assertEqual(self.parser.parse_cmd_get_co2_offset(hex_to_bytes(self.parse_cmd_get_co2_offset['raw'])),
-#                          self.parse_cmd_get_co2_offset['parsed'])
-#         # test parse_cmd_read_station_mac()
-#         self.assertEqual(self.parser.parse_cmd_read_station_mac(hex_to_bytes(self.parse_cmd_read_station_mac['raw'])),
-#                          self.parse_cmd_read_station_mac['parsed'])
-#         # test parse_cmd_gw1000_livedata()
-# #        self.assertEqual(self.parser.parse_cmd_gw1000_livedata(hex_to_bytes(self.parse_cmd_gw1000_livedata['raw'])),
-# #                         self.parse_cmd_gw1000_livedata['parsed'])
-#         # test parse_cmd_read_ssss()
-# #        self.assertEqual(self.parser.parse_cmd_read_ssss(self.parse_cmd_read_ssss['raw']),
-# #                         self.parse_cmd_read_ssss['parsed'])
-#         # test parse_cmd_read_raindata()
-# #        self.assertEqual(self.parser.parse_cmd_read_raindata(self.parse_cmd_read_raindata['raw']),
-# #                         self.parse_cmd_read_raindata['parsed'])
-#         # test parse_cmd_read_gain()
-# #        self.assertEqual(self.parser.parse_cmd_read_gain(self.parse_cmd_read_gain['raw']),
-# #                         self.parse_cmd_read_gain['parsed'])
-#         # test parse_cmd_read_calibration()
-# #        self.assertEqual(self.parser.parse_cmd_read_calibration(self.parse_cmd_read_calibration['raw']),
-# #                         self.parse_cmd_read_calibration['parsed'])
-#         # test parse_cmd_read_sensor_id()
-# #        self.assertEqual(self.parser.parse_cmd_read_sensor_id(self.parse_cmd_read_sensor_id['raw']),
-# #                         self.parse_cmd_read_sensor_id['parsed'])
-#         # test parse_cmd_read_sensor_id_new()
-# #        self.assertEqual(self.parser.parse_cmd_read_sensor_id_new(self.parse_cmd_read_sensor_id_new['raw']),
-# #                         self.parse_cmd_read_sensor_id_new['parsed'])
-#         # test parse_cmd_read_firmware_version()
-#         self.assertEqual(self.parser.parse_cmd_read_firmware_version(hex_to_bytes(self.parse_cmd_read_firmware_version['raw'])),
-#                          self.parse_cmd_read_firmware_version['parsed'])
+    def test30_parse(self):
+        """... Test class Parser() parse method
 
+        This test is an end to end parse test, it includes the methods already
+        tested at test20_parse_cmds().
+        """
+
+        # iterate over the available parse test data entries
+        for case, data in six.iteritems(self.parse_data):
+            # check the parse method applicable ot each piece of test data
+            self.assertEqual(self.parser.parse(case, hex_to_bytes(data['raw'])),
+                             data['parsed'])
 
 class SensorStateTestCase(unittest.TestCase):
     """Test the Parser.SensorsState class."""
