@@ -240,10 +240,20 @@ class ParserTestCase(unittest.TestCase):
                        'wu_path': '/weatherstation/updateweatherstation.php?'
                        }
         },
-        # 'parse_cmd_get_soilhumiad': {
-        #     'raw': 1,
-        #     'parsed': 2
-        # },
+        'cmd_get_soilhumiad': {
+            'raw': "FF FF 28 13 00 34 01 14 00 00 01 F4 01 39 01 2A 00 00 01 F4 D3",
+            'parsed': {0: {'humidity': 52,
+                           'ad': 276,
+                           'ad_select': 0,
+                           'adjusted_min_ad': 0,
+                           'adjusted_max_ad': 500},
+                       1: {'humidity': 57,
+                           'ad': 298,
+                           'ad_select': 0,
+                           'adjusted_min_ad': 0,
+                           'adjusted_max_ad': 500}
+                       }
+        },
         'cmd_get_mulch_offset': {
             'raw': "FF FF 2C 1B 00 00 00 01 00 00 02 00 00 03 00 00 04 00 00 05 "
                    "00 00 06 00 00 07 00 00 63",
@@ -269,61 +279,84 @@ class ParserTestCase(unittest.TestCase):
             'raw': "FF FF 26 09 DC 4F 22 58 B7 FF 8A",
             'parsed': {'mac': 'DC:4F:22:58:B7:FF'}
         },
-        # 'cmd_gw1000_livedata': {
-        #     'raw': "FF FF 3C 01 4D 00 FF FF FF FE FF 00 01 FF FF FF FE FF 00 "
-        #            "02 FF FF FF FE FF 00 03 FF FF FF FE 1F 00 05 00 00 00 E4 00 04 "
-        #            "06 00 00 00 5B 00 04 07 00 00 00 BE 00 04 08 FF FF FF FE 00 00 "
-        #            "09 FF FF FF FE 00 00 0A FF FF FF FE 00 00 0B FF FF FF FE 00 00 "
-        #            "0C FF FF FF FE 00 00 0D FF FF FF FE 00 00 0E 00 00 CB D1 0F 04 "
-        #            "0F 00 00 CD 19 0F 04 10 00 00 CD 04 1F 00 11 FF FF FF FE 1F 00 "
-        #            "12 FF FF FF FE 1F 00 13 FF FF FF FE 1F 00 14 FF FF FF FE 1F 00 "
-        #            "15 FF FF FF FE 1F 00 16 00 00 C4 97 06 04 17 FF FF FF FE 0F 00 "
-        #            "18 FF FF FF FE 0F 00 19 FF FF FF FE 0F 00 1A 00 00 D3 D3 04 04 "
-        #            "1B FF FF FF FE 0F 00 1C FF FF FF FE 0F 00 1D FF FF FF FE 0F 00 "
-        #            "1E FF FF FF FE 0F 00 1F FF FF FF FF FF 00 20 FF FF FF FE FF 00 "
-        #            "21 FF FF FF FE FF 00 22 FF FF FF FE FF 00 23 FF FF FF FE FF 00 "
-        #            "24 FF FF FF FE FF 00 25 FF FF FF FE FF 00 26 FF FF FF FE FF 00 "
-        #            "27 FF FF FF FE 0F 00 28 FF FF FF FE FF 00 29 FF FF FF FE FF 00 "
-        #            "2A FF FF FF FE FF 00 2B FF FF FF FE FF 00 2C FF FF FF FE FF 00 "
-        #            "2D FF FF FF FE FF 00 2E FF FF FF FE FF 00 2F FF FF FF FE FF 00 "
-        #            "FF",
-        #     'parsed': {'intemp': 21.5, 'inhumid': 57, 'absbarometer': 1016.5,
-        #                'relbarometer': 1021.4, 'outtemp': 16.8, 'outhumid': 67,
-        #                'pm251': 6.0, 'pm251_24h_avg': 5.7, 'soilmoist1': 64,
-        #                'soilmoist2': 47, 'temp1': 19.6, 'humid1': 69, 'temp2': 16.8,
-        #                'humid2': 75, 'lightningcount': 0, 'lightningdettime': None,
-        #                'lightningdist': None, 'datetime': 1624689934, 'wh26_batt': 0,
-        #                'wh26_sig': 4, 'wh31_ch1_batt': 0, 'wh31_ch1_sig': 4,
-        #                'wh31_ch2_batt': 0, 'wh31_ch2_sig': 4, 'wh51_ch1_batt': 1,
-        #                'wh51_ch1_sig': 4, 'wh51_ch2_batt': 1, 'wh51_ch2_sig': 4,
-        #                'wh51_ch3_batt': None, 'wh51_ch3_sig': 0, 'wh41_ch1_batt': 6,
-        #                'wh41_ch1_sig': 4, 'wh57_batt': 4, 'wh57_sig': 4
-        #                }
-        # },
-        # 'cmd_read_ssss': {
-        #     'raw': 1,
-        #     'parsed': 2
-        # },
-        # 'cmd_read_raindata': {
-        #     'raw': 1,
-        #     'parsed': 2
-        # },
-        # 'cmd_read_gain': {
-        #     'raw': 1,
-        #     'parsed': 2
-        # },
-        # 'cmd_read_calibration': {
-        #     'raw': 1,
-        #     'parsed': 2
-        # },
+        'cmd_gw1000_livedata': {
+            'raw': "FF FF 27 00 34 "
+                   "01 00 C9 06 35 08 27 EA 09 28 1B 02 00 F0 07 36 "
+                   "2A 00 5A 4D 00 4A 2C 3A 2E 34 1A 00 C8 22 3C 1B 00 E8 23 "
+                   "3D 62 00 00 00 00 61 FF FF FF FF 60 FF "
+                   "98",
+            'parsed': {'intemp': 20.1, 'inhumid': 53, 'absbarometer': 1021.8,
+                       'relbarometer': 1026.7, 'outtemp': 24.0, 'outhumid': 54,
+                       'pm251': 9.0, 'pm251_24h_avg': 7.4, 'soilmoist1': 58,
+                       'soilmoist2': 52, 'temp1': 20.0, 'humid1': 60, 'temp2': 23.2,
+                       'humid2': 61, 'lightningcount': 0, 'lightningdettime': None,
+                       'lightningdist': None
+                       }
+        },
+        'cmd_read_ssss': {
+            'raw': "FF FF 30 0B 02 01 60 D9 A9 C5 5E 01 42",
+            'parsed': {'frequency': 2,
+                       'sensor_type': 1,
+                       'utc': 1624877509,
+                       'timezone_index': 94,
+                       'dst_status': True}
+        },
+        'cmd_read_raindata': {
+            'raw': "FF FF 34 17 00 00 00 00 00 00 00 34 00 00 00 7C 00 00 01 58 "
+                   "00 00 17 64 CF",
+            'parsed': {'rain_rate': 0.0,
+                       'rain_day': 5.2,
+                       'rain_week': 12.4,
+                       'rain_month': 34.4,
+                       'rain_year': 598.8}
+        },
+        'cmd_read_gain': {
+            'raw': "FF FF 36 0F 04 F3 00 E6 00 69 00 64 00 66 00 64 B9",
+            'parsed': {'fixed': 126.7,
+                       'uv': 2.3,
+                       'solar': 1.05,
+                       'wind': 1.0,
+                       'rain': 1.02}
+        },
+        'cmd_read_calibration': {
+            'raw': "FF FF 38 13 00 00 FB FF FF FF FA 00 00 00 31 00 09 06 00 5A D7",
+            'parsed': {'intemp': 0.0,
+                       'inhum': -5,
+                       'abs': -0.6,
+                       'rel': 4.9,
+                       'outtemp': 0.9,
+                       'outhum': 6,
+                       'dir': 90}
+        },
         # 'cmd_read_sensor_id': {
         #     'raw': 1,
         #     'parsed': 2
         # },
-        # 'cmd_read_sensor_id_new': {
-        #     'raw': 1,
-        #     'parsed': 2
-        # },
+        'cmd_read_sensor_id_new': {
+            'raw': "FF FF 3C 01 4D "
+                   "00 FF FF FF FE FF 00 01 FF FF FF FE FF 00 02 FF FF FF FE FF 00 "
+                   "03 FF FF FF FE 1F 00 05 00 00 00 E4 00 04 06 00 00 00 5B 00 04 "
+                   "07 00 00 00 BE 00 04 0E 00 00 CB D1 0F 04 0F 00 00 CD 19 0F 04 "
+                   "10 00 00 CD 04 1F 00 16 00 00 C4 97 06 04 1A 00 00 D3 D3 04 04 "
+                   "1B FF FF FF FE 0F 00 20 FF FF FF FE FF 00 2F FF FF FF FE FF 00 "
+                   "FF",
+            'parsed': {b'\x00': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                       b'\x01': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                       b'\x02': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                       b'\x03': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                       b'\x05': {'id': '000000e4', 'battery': 0, 'signal': 4},
+                       b'\x06': {'id': '0000005b', 'battery': 0, 'signal': 4},
+                       b'\x07': {'id': '000000be', 'battery': 0, 'signal': 4},
+                       b'\x0e': {'id': '0000cbd1', 'battery': 1, 'signal': 4},
+                       b'\x0f': {'id': '0000cd19', 'battery': 1, 'signal': 4},
+                       b'\x10': {'id': '0000cd04', 'battery': None, 'signal': 0},
+                       b'\x16': {'id': '0000c497', 'battery': 6, 'signal': 4},
+                       b'\x1a': {'id': '0000d3d3', 'battery': 4, 'signal': 4},
+                       b'\x1b': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                       b' ': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                       b'/': {'id': 'fffffffe', 'battery': None, 'signal': 0}
+                       }
+        },
         'cmd_read_firmware_version': {
             'raw': "FF FF 50 11 0D 47 57 31 30 30 30 5F 56 31 2E 36 2E 38 7D",
             'parsed': {'firmware': 'GW1000_V1.6.8'}
