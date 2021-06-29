@@ -29,16 +29,15 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.4.0.a1                                    Date: xx June 2021
+Version: 0.4.0a1                                    Date: xx July 2021
 
 Revision History
-    xx June 2021            v0.4.0
+    xx July 2021            v0.4.0
         -   reworked processing of queued data by class Gw1000Service() to fix
             a bug resulting is intermittent missing GW1000 data
         -   implemented debug_wind reporting
         -   re-factored debug_rain reporting to report both 'WeeWX' and
             'GW1000' rain related fields
-    22 April 2021           v0.3.2
         -   battery state data is now set to None for sensors with signal
             level == 0, can be disabled by setting option
             show_all_batt = True under [GW1000] in weewx.conf or by use of

@@ -1,4 +1,9 @@
-v0.3.2
+v0.4.0
+*   reworked processing of queued data by class Gw1000Service() to fix a bug
+    resulting is intermittent missing GW1000 data
+*   implemented debug_wind reporting
+*   re-factored debug_rain reporting to report both 'WeeWX' and 'GW1000' rain
+    related fields
 *   battery state data is now set to None for sensors with signal level == 0,
     can be disabled by setting option show_all_batt = True under [GW1000] in
     weewx.conf or by use of the --show-all-batt command line option
