@@ -2757,11 +2757,12 @@ class Station(object):
         """Discover any GW1000s on the local network.
 
         Send a UDP broadcast and check for replies. Decode each reply to
-        obtain the IP address and port number of any GW1000s on the local
-        network. Since there may be multiple GW1000s on the network
-        package each IP address and port as a two way tuple and construct a
-        list of unique IP address/port tuples. When complete return the
-        list of IP address/port tuples found.
+        obtain a dict of details of any GW1000s on the local network. There
+        may be multiple GW1000s on the network and a given GW1000 may respond
+        more than once so filter any result dicts by IP address and port to
+        avoid duplicates.
+
+        A list of dicts is returned.
         """
 
         # now create a socket object so we can broadcast to the network
@@ -5933,6 +5934,7 @@ class DirectGw1000(object):
         # call the Gw1000Collector object discover() method, wrap in a try so we can
         # catch any socket timeouts
         try:
+            # obtain a list of dicts of unique GW1000 on our network
             ip_port_list = collector.station.discover()
         except socket.timeout:
             print("Timeout. No GW1000 discovered.")
@@ -5940,34 +5942,42 @@ class DirectGw1000(object):
             if len(ip_port_list) > 0:
                 # we have at least one result
                 # first sort our list by IP address
-                # TODO. Need to sort this list by ip_address
                 sorted_list = sorted(ip_port_list, key=itemgetter('ip_address'))
-                # sorted_list = ip_port_list
-                found = False
+                # set a counter to count the number of devices found
                 gw1000_found = 0
+                # iterate over the list of devices found
                 for device in sorted_list:
-                    # TODO. Need to add SSID here somehow
+                    # we need an IP address and port for each device
                     if device['ip_address'] is not None and device['port'] is not None:
+                        # We have an IP address and port so we can use this
+                        # device. Do we have any SSID data, if we do construct
+                        # an appropariate informative message. Keep in mind
+                        # this SSID is the GW1000 setup SSID and has no
+                        # relationship with our network SSID - in other words
+                        # it's not much use!
                         if 'ssid' in device and device['ssid'] is not None:
                             ssid_str = " (device setup SSID: %s)" % (device['ssid'],)
                         else:
                             ssid_str = ''
+                        # print the details of the GW1000 concerned
                         print("GW1000 discovered at IP address %s on port %d%s" % (device['ip_address'],
                                                                                    device['port'],
                                                                                    ssid_str))
-                        found = True
+                        # increment our counter
                         gw1000_found += 1
                 else:
+                    # display an appropriate summary if multiple GW1000s found
+                    # or if no GW1000s were found
                     if gw1000_found > 1:
                         print()
-                        print("Multiple GW1000 were found.")
+                        print("Multiple GW1000 were discovered.")
                         print("If using the GW1000 driver consider explicitly specifying the IP address")
                         print("and port of the GW1000 to be used under [GW1000] in weewx.conf.")
-                    if not found:
-                        print("No GW1000 was discovered.")
+                    if gw1000_found == 0:
+                        print("No GW1000 were discovered.")
             else:
                 # we have no results
-                print("No GW1000 was discovered.")
+                print("No GW1000 were discovered.")
 
     @staticmethod
     def field_map():
