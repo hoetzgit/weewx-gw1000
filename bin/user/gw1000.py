@@ -3062,20 +3062,24 @@ class Station(object):
     def get_livedata(self):
         """Get GW1000 live data.
 
-        # TODO. Need to re-comment this
-        Sends the command to obtain live data from the GW1000 to the API
-        with retries. If the GW1000 cannot be contacted re-discovery is
-        attempted. If rediscovery is successful the command is tried again
-        otherwise the lost contact timestamp is set and the exception
-        raised. Any code that calls this method should be prepared to
-        handle a GW1000IOError exception.
+        Sends the CMD_GW1000_LIVEDATA command to obtain live sensor data from
+        the GW1000. The response is parsed and a dict containing the parsed
+        sensor data is returned. The dict is keyed with GW1000 field names
+        depending on the sensors that are linked and have reported to the
+        GW1000.
+
+        If the GW1000 cannot be contacted re-discovery is attempted. If
+        rediscovery is successful the CMD_GW1000_LIVEDATA command is tried
+        again otherwise the lost contact timestamp is set and a GW1000IOError
+        exception raised. Any code that calls this method should be prepared to
+        handle this exception.
         """
 
         # send the API command to obtain live data from the GW1000, be
         # prepared to catch the exception raised if the GW1000 cannot be
         # contacted
         try:
-            # return the validated API response
+            # get the raw sensor data
             raw_data = self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
         except GW1000IOError:
             # there was a problem contacting the GW1000, it could be it
@@ -3100,8 +3104,16 @@ class Station(object):
         'frequency':      GW1000 frequency band (0=433MHz, 1=868MHZ, 2=915MHz,
                           3=920MHz) (integer)
         'sensor_type':    sensor type (0=WH24, 1=WH65) (integer)
-        # TODO. Better description for UTC
-        'utc':            UTC (integer)
+        'utc':            The GW1000 API documentation claims this is UTC time.
+                          The data returned via the API is indeed a valid epoch
+                          timestamp; however, the timestamp is offset by the
+                          stations timezone. So for a station in the +10 hour
+                          timezone, the timestamp returned is the present epoch
+                          timestamp plus 10 * 3600 seconds. Consequently, when
+                          decoded in localtime the decoded date-time is off by
+                          the station time zone, when decoded as GMT the date
+                          and time figures are correct but the timezone is
+                          incorrect. (integer)
         'timezone_index': local timezone index (integer)
         'dst_status':     DST status (0=False, not 0=True) (integer)
 
@@ -3227,7 +3239,6 @@ class Station(object):
         raw_data = self.send_cmd_with_retries('CMD_READ_FIRMWARE_VERSION')
         return self.parser.parse('CMD_READ_FIRMWARE_VERSION', raw_data)['firmware']
 
-    # TODO. Is the payload parameter required?
     def send_cmd_with_retries(self, cmd, payload=b''):
         """Send a command to the GW1000 API with retries and return the
         response.
@@ -3952,8 +3963,9 @@ class Parser(object):
     def parse_cmd_read_sensor_id(self, raw_data):
         """Parse response to CMD_READ_SENSOR_ID API call."""
 
-        # TODO. Need to code this.
-        # obtain the data payload
+        # TODO. Need to code this. What does CMD_READ_SENSOR_ID actually return?
+        # obtain the data payload, in this case the size is specified in a
+        # single byte
         data = self.get_payload(raw_data)
         # initialise a dict to hold our results
         data_dict = {}
@@ -3963,7 +3975,8 @@ class Parser(object):
     def parse_cmd_read_sensor_id_new(self, raw_data):
         """Parse response to CMD_READ_SENSOR_ID_NEW API call."""
 
-        # obtain the data payload
+        # obtain the data payload, in this case the size is specified in two
+        # bytes
         data = self.get_payload(raw_data, size_bytes=2)
         # return the parsed data
         return self.sensor_state_obj.parse_sensor_id_data(data)
@@ -4095,8 +4108,16 @@ class Parser(object):
                 self.sensor_ids[b'\x00']['long_name'] = 'WH24'
 
         def parse_sensor_id_data(self, data):
-            # TODO. Is this raw sensor data or something else?
-            """Parse the raw sensor ID data and store the results."""
+            """Parse the raw sensor ID data and store the results.
+
+            Takes the raw sensor ID payload and decodes the various sensor
+            state fields.
+
+            data: raw sensor ID payload
+
+            Returns a dict of decoded sensor state data keyed by sensor address
+            (byte string).
+            """
 
             # initialise a dict to hold our results
             result = dict()
@@ -4235,7 +4256,7 @@ class Parser(object):
         individual sensors.
         """
 
-        # TODO. Would be good to get rid of this too, but it is presently used elsewhere
+        # TODO. Would be good to get rid of this too, but it is presently used elsewhere, need to sort wh65/wh24 and where wh25/26/40 sensor state comes from
         multi_batt = {'wh40': {'mask': 1 << 4},
                       'wh26': {'mask': 1 << 5},
                       'wh25': {'mask': 1 << 6},
