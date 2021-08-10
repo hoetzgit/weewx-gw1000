@@ -2126,11 +2126,11 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                     # (most encompassing) and work to the lowest (least
                     # encompassing)
                     if self.debug_loop:
-                        loginf('Packet%s: %s' % (timestamp_to_string(packet['dateTime']),
-                                                 natural_sort_dict(packet)))
+                        loginf('Packet %s: %s' % (timestamp_to_string(packet['dateTime']),
+                                                  natural_sort_dict(packet)))
                     elif weewx.debug >= 2:
-                        logdbg('Packet%s: %s' % (timestamp_to_string(packet['dateTime']),
-                                                 natural_sort_dict(packet)))
+                        logdbg('Packet %s: %s' % (timestamp_to_string(packet['dateTime']),
+                                                  natural_sort_dict(packet)))
                     else:
                         # perhaps we have individual debugs such as rain or wind
                         if self.debug_rain:
@@ -2138,13 +2138,13 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                             # loop packet being emitted, if it does not exist
                             # say so
                             self.log_rain_data(mapped_data,
-                                               "Packet%s" % timestamp_to_string(packet['dateTime']))
+                                               "Packet %s" % timestamp_to_string(packet['dateTime']))
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # loop packet being emitted, if they do not exist
                             # say so
                             self.log_wind_data(mapped_data,
-                                               "Packets%s" % timestamp_to_string(packet['dateTime']))
+                                               "Packets %s" % timestamp_to_string(packet['dateTime']))
                     # yield the loop packet
                     yield packet
                 # if it's a tuple then it's a tuple with an exception and
