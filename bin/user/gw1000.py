@@ -331,6 +331,38 @@ method):
                 extractor = last
             [[wh41_ch2_sig]]
                 extractor = last
+            [[wh34_ch1_sig]]
+                extractor = last
+            [[wh34_ch2_sig]]
+                extractor = last
+            [[wh34_ch3_sig]]
+                extractor = last
+            [[wh34_ch4_sig]]
+                extractor = last
+            [[wh34_ch5_sig]]
+                extractor = last
+            [[wh34_ch6_sig]]
+                extractor = last
+            [[wh34_ch7_sig]]
+                extractor = last
+            [[wh34_ch8_sig]]
+                extractor = last
+            [[wh35_ch1_sig]]
+                extractor = last
+            [[wh35_ch2_sig]]
+                extractor = last
+            [[wh35_ch3_sig]]
+                extractor = last
+            [[wh35_ch4_sig]]
+                extractor = last
+            [[wh35_ch5_sig]]
+                extractor = last
+            [[wh35_ch6_sig]]
+                extractor = last
+            [[wh35_ch7_sig]]
+                extractor = last
+            [[wh35_ch8_sig]]
+                extractor = last
             [[wh41_ch3_sig]]
                 extractor = last
             [[wh41_ch4_sig]]
@@ -805,6 +837,7 @@ class Gw1000(object):
         'wh40_batt': 'wh40_batt',
         'wh26_batt': 'wh26_batt',
         'wh25_batt': 'wh25_batt',
+        'wh24_batt': 'wh24_batt',
         'wh65_batt': 'wh65_batt',
         'wh31_ch1_batt': 'wh31_ch1_batt',
         'wh31_ch2_batt': 'wh31_ch2_batt',
@@ -814,6 +847,14 @@ class Gw1000(object):
         'wh31_ch6_batt': 'wh31_ch6_batt',
         'wh31_ch7_batt': 'wh31_ch7_batt',
         'wh31_ch8_batt': 'wh31_ch8_batt',
+        'wh34_ch1_batt': 'wh34_ch1_batt',
+        'wh34_ch2_batt': 'wh34_ch2_batt',
+        'wh34_ch3_batt': 'wh34_ch3_batt',
+        'wh34_ch4_batt': 'wh34_ch4_batt',
+        'wh34_ch5_batt': 'wh34_ch5_batt',
+        'wh34_ch6_batt': 'wh34_ch6_batt',
+        'wh34_ch7_batt': 'wh34_ch7_batt',
+        'wh34_ch8_batt': 'wh34_ch8_batt',
         'wh35_ch1_batt': 'wh35_ch1_batt',
         'wh35_ch2_batt': 'wh35_ch2_batt',
         'wh35_ch3_batt': 'wh35_ch3_batt',
@@ -857,6 +898,7 @@ class Gw1000(object):
         'wh40_sig': 'wh40_sig',
         'wh26_sig': 'wh26_sig',
         'wh25_sig': 'wh25_sig',
+        'wh24_sig': 'wh24_sig',
         'wh65_sig': 'wh65_sig',
         'wh31_ch1_sig': 'wh31_ch1_sig',
         'wh31_ch2_sig': 'wh31_ch2_sig',
@@ -866,6 +908,14 @@ class Gw1000(object):
         'wh31_ch6_sig': 'wh31_ch6_sig',
         'wh31_ch7_sig': 'wh31_ch7_sig',
         'wh31_ch8_sig': 'wh31_ch8_sig',
+        'wh34_ch1_sig': 'wh34_ch1_sig',
+        'wh34_ch2_sig': 'wh34_ch2_sig',
+        'wh34_ch3_sig': 'wh34_ch3_sig',
+        'wh34_ch4_sig': 'wh34_ch4_sig',
+        'wh34_ch5_sig': 'wh34_ch5_sig',
+        'wh34_ch6_sig': 'wh34_ch6_sig',
+        'wh34_ch7_sig': 'wh34_ch7_sig',
+        'wh34_ch8_sig': 'wh34_ch8_sig',
         'wh35_ch1_sig': 'wh35_ch1_sig',
         'wh35_ch2_sig': 'wh35_ch2_sig',
         'wh35_ch3_sig': 'wh35_ch3_sig',
@@ -3760,22 +3810,23 @@ class Gw1000Collector(Collector):
                       'wh25': {'mask': 1 << 6},
                       'wh65': {'mask': 1 << 7}
                       }
-        # TODO. Is this needed, here or elsewhere and is it complete
-        battery_state_desc = {'wh24': 'binary_desc',
-                              'wh25': 'binary_desc',
-                              'wh26': 'binary_desc',
-                              'wh31': 'binary_desc',
-                              'wh32': 'binary_desc',
-                              'wh35': 'binary_desc',
-                              'wh40': 'binary_desc',
-                              'wh41': 'level_desc',
-                              'wh51': 'binary_desc',
-                              'wh55': 'level_desc',
-                              'wh57': 'level_desc',
-                              'wh65': 'binary_desc',
-                              'wh68': 'voltage_desc',
-                              'ws80': 'voltage_desc',
-                              }
+        # # TODO. Is this needed, here or elsewhere and is it complete
+        # # TODO. Possibly delete, no usage found
+        # battery_state_desc = {'wh24': 'binary_desc',
+        #                       'wh25': 'binary_desc',
+        #                       'wh26': 'binary_desc',
+        #                       'wh31': 'binary_desc',
+        #                       'wh32': 'binary_desc',
+        #                       'wh35': 'binary_desc',
+        #                       'wh40': 'binary_desc',
+        #                       'wh41': 'level_desc',
+        #                       'wh51': 'binary_desc',
+        #                       'wh55': 'level_desc',
+        #                       'wh57': 'level_desc',
+        #                       'wh65': 'binary_desc',
+        #                       'wh68': 'voltage_desc',
+        #                       'ws80': 'voltage_desc',
+        #                       }
         # Dictionary keyed by GW1000 response element containing various
         # parameters for each response 'field'. Dictionary tuple format
         # is (decode function name, size of data in bytes, GW1000 field name)
@@ -4707,6 +4758,7 @@ class DirectGw1000(object):
         'wh40_batt': 'group_count',
         'wh26_batt': 'group_count',
         'wh25_batt': 'group_count',
+        'wh24_batt': 'group_count',
         'wh65_batt': 'group_count',
         'wh31_ch1_batt': 'group_count',
         'wh31_ch2_batt': 'group_count',
@@ -4716,14 +4768,22 @@ class DirectGw1000(object):
         'wh31_ch6_batt': 'group_count',
         'wh31_ch7_batt': 'group_count',
         'wh31_ch8_batt': 'group_count',
-        'wh35_ch1_batt': 'group_count',
-        'wh35_ch2_batt': 'group_count',
-        'wh35_ch3_batt': 'group_count',
-        'wh35_ch4_batt': 'group_count',
-        'wh35_ch5_batt': 'group_count',
-        'wh35_ch6_batt': 'group_count',
-        'wh35_ch7_batt': 'group_count',
-        'wh35_ch8_batt': 'group_count',
+        'wh34_ch1_batt': 'group_volt',
+        'wh34_ch2_batt': 'group_volt',
+        'wh34_ch3_batt': 'group_volt',
+        'wh34_ch4_batt': 'group_volt',
+        'wh34_ch5_batt': 'group_volt',
+        'wh34_ch6_batt': 'group_volt',
+        'wh34_ch7_batt': 'group_volt',
+        'wh34_ch8_batt': 'group_volt',
+        'wh35_ch1_batt': 'group_volt',
+        'wh35_ch2_batt': 'group_volt',
+        'wh35_ch3_batt': 'group_volt',
+        'wh35_ch4_batt': 'group_volt',
+        'wh35_ch5_batt': 'group_volt',
+        'wh35_ch6_batt': 'group_volt',
+        'wh35_ch7_batt': 'group_volt',
+        'wh35_ch8_batt': 'group_volt',
         'wh41_ch1_batt': 'group_count',
         'wh41_ch2_batt': 'group_count',
         'wh41_ch3_batt': 'group_count',
@@ -4755,6 +4815,7 @@ class DirectGw1000(object):
         'wh40_sig': 'group_count',
         'wh26_sig': 'group_count',
         'wh25_sig': 'group_count',
+        'wh24_sig': 'group_count',
         'wh65_sig': 'group_count',
         'wh31_ch1_sig': 'group_count',
         'wh31_ch2_sig': 'group_count',
@@ -4764,6 +4825,14 @@ class DirectGw1000(object):
         'wh31_ch6_sig': 'group_count',
         'wh31_ch7_sig': 'group_count',
         'wh31_ch8_sig': 'group_count',
+        'wh34_ch1_sig': 'group_count',
+        'wh34_ch2_sig': 'group_count',
+        'wh34_ch3_sig': 'group_count',
+        'wh34_ch4_sig': 'group_count',
+        'wh34_ch5_sig': 'group_count',
+        'wh34_ch6_sig': 'group_count',
+        'wh34_ch7_sig': 'group_count',
+        'wh34_ch8_sig': 'group_count',
         'wh35_ch1_sig': 'group_count',
         'wh35_ch2_sig': 'group_count',
         'wh35_ch3_sig': 'group_count',
@@ -5640,8 +5709,13 @@ class DirectGw1000(object):
                 c = weewx.units.StdUnitConverters[weewx.METRICWX]
             else:
                 c = weewx.units.StdUnitConverters[weewx.METRIC]
-            # now get a formatter
-            f = weewx.units.Formatter(unit_format_dict=weewx.units.default_unit_format_dict,
+            # Now get a formatter, we could use the
+            # weewx.units.default_unit_format_dict but we need voltages
+            # formatted to two decimal places. So take a copy of the default
+            # unit format dict, chnage the 'volt' format to suit and use that.
+            gw1000_unit_format_dict = dict(weewx.units.default_unit_format_dict)
+            gw1000_unit_format_dict['volt'] = '%.2f'
+            f = weewx.units.Formatter(unit_format_dict=gw1000_unit_format_dict,
                                       unit_label_dict=weewx.units.default_unit_label_dict)
             # now build a new data dict with our converted and formatted data
             result = {}
