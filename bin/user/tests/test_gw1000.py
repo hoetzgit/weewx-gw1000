@@ -1,7 +1,7 @@
 """
 Test suite for the GW1000 driver.
 
-Copyright (C) 2020 Gary Roderick                   gjroderick<at>gmail.com
+Copyright (C) 2020-21 Gary Roderick                gjroderick<at>gmail.com
 
 A python unittest based test suite for aspects of the GW1000 driver. The test
 suite tests correct operation of:
@@ -49,6 +49,7 @@ import user.gw1000
 # TODO. Check count_data data and result are correct
 # TODO. Add decode firmware check refer issue #31
 
+
 class SensorsTestCase(unittest.TestCase):
     """Test the Sensors class."""
 
@@ -73,6 +74,12 @@ class SensorsTestCase(unittest.TestCase):
         self.assertEqual(self.sensors.batt_volt(100), 2.00)
         self.assertEqual(self.sensors.batt_volt(101), 2.02)
         self.assertEqual(self.sensors.batt_volt(255), 5.1)
+
+        # voltage battery states (method batt_volt_tenth())
+        self.assertEqual(self.sensors.batt_volt_tenth(0), 0.00)
+        self.assertEqual(self.sensors.batt_volt_tenth(15), 1.5)
+        self.assertEqual(self.sensors.batt_volt_tenth(17), 1.7)
+        self.assertEqual(self.sensors.batt_volt_tenth(255), 25.5)
 
         # binary description
         self.assertEqual(self.sensors.battery_desc(b'\x00', 0), 'OK')
@@ -190,7 +197,7 @@ class ParseTestCase(unittest.TestCase):
         b'\x60': ('decode_distance', 1, 'lightningdist'),
         b'\x61': ('decode_utc', 4, 'lightningdettime'),
         b'\x62': ('decode_count', 4, 'lightningcount'),
-        # WH34 battery data is not obtained from live data rather it is
+        # WN34L/WN34S battery data is not obtained from live data rather it is
         # obtained from sensor ID data
         b'\x63': ('decode_wn34', 3, 'temp9'),
         b'\x64': ('decode_wn34', 3, 'temp10'),
@@ -255,7 +262,7 @@ class ParseTestCase(unittest.TestCase):
     distance_data = {'hex': '1A', 'value': 26}
     utc_data = {'hex': '5F 40 72 51', 'value': 1598059089}
     count_data = {'hex': '00 40 72 51', 'value': 4223569}
-    wh34_data = {'hex': '00 EA 4D',
+    wn34_data = {'hex': '00 EA 4D',
                  'field': 't',
                  'value': {'t': 23.4}
                  }
@@ -424,18 +431,20 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(2))), None)
 
-        # test wh34 decode (method decode_pm10())
+        # TODO. Sensor name and function do not agree
+        # test WN34 decode (method decode_pm10())
         pass
 
-        # test wh34 decode (method decode_co2())
+        # TODO. Sensor name and function do not agree
+        # test WN34 decode (method decode_co2())
         pass
 
-        # test wh34 decode (method decode_wn34())
-        self.assertEqual(self.parser.decode_wn34(hex_to_bytes(self.wh34_data['hex']), field=self.wh34_data['field']),
-                         self.wh34_data['value'])
+        # test WN34 decode (method decode_wn34())
+        self.assertEqual(self.parser.decode_wn34(hex_to_bytes(self.wn34_data['hex']), field=self.wn34_data['field']),
+                         self.wn34_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_wn34(hex_to_bytes(xbytes(1)), field=self.wh34_data['field']), {})
-        self.assertEqual(self.parser.decode_wn34(hex_to_bytes(xbytes(4)), field=self.wh34_data['field']), {})
+        self.assertEqual(self.parser.decode_wn34(hex_to_bytes(xbytes(1)), field=self.wn34_data['field']), {})
+        self.assertEqual(self.parser.decode_wn34(hex_to_bytes(xbytes(4)), field=self.wn34_data['field']), {})
 
         # test wh45 decode (method decode_wh45())
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(self.wh45_data['hex']), fields=self.wh45_data['field']),
