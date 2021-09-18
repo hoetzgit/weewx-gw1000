@@ -111,7 +111,7 @@ four byte integer containing a Unix epoch timestamp; however, the timestamp is
 offset from UTC time by the GW1000 timezone. In other words, two GW1000 in
 different timezones that have their system time correctly set will return
 different values for UTC time. The GW1000 driver subtracts the system UTC
-offset in seconds from the UTC time retruned by the CMD_READ_SSSS command in
+offset in seconds from the UTC time returned by the CMD_READ_SSSS command in
 order to obtain the correct UTC time.
 
 
@@ -349,21 +349,21 @@ method):
                 extractor = last
             [[wh41_ch2_sig]]
                 extractor = last
-            [[wh34_ch1_sig]]
+            [[wn34_ch1_sig]]
                 extractor = last
-            [[wh34_ch2_sig]]
+            [[wn34_ch2_sig]]
                 extractor = last
-            [[wh34_ch3_sig]]
+            [[wn34_ch3_sig]]
                 extractor = last
-            [[wh34_ch4_sig]]
+            [[wn34_ch4_sig]]
                 extractor = last
-            [[wh34_ch5_sig]]
+            [[wn34_ch5_sig]]
                 extractor = last
-            [[wh34_ch6_sig]]
+            [[wn34_ch6_sig]]
                 extractor = last
-            [[wh34_ch7_sig]]
+            [[wn34_ch7_sig]]
                 extractor = last
-            [[wh34_ch8_sig]]
+            [[wn34_ch8_sig]]
                 extractor = last
             [[wn35_ch1_sig]]
                 extractor = last
@@ -865,14 +865,14 @@ class Gw1000(object):
         'wh31_ch6_batt': 'wh31_ch6_batt',
         'wh31_ch7_batt': 'wh31_ch7_batt',
         'wh31_ch8_batt': 'wh31_ch8_batt',
-        'wh34_ch1_batt': 'wh34_ch1_batt',
-        'wh34_ch2_batt': 'wh34_ch2_batt',
-        'wh34_ch3_batt': 'wh34_ch3_batt',
-        'wh34_ch4_batt': 'wh34_ch4_batt',
-        'wh34_ch5_batt': 'wh34_ch5_batt',
-        'wh34_ch6_batt': 'wh34_ch6_batt',
-        'wh34_ch7_batt': 'wh34_ch7_batt',
-        'wh34_ch8_batt': 'wh34_ch8_batt',
+        'wn34_ch1_batt': 'wn34_ch1_batt',
+        'wn34_ch2_batt': 'wn34_ch2_batt',
+        'wn34_ch3_batt': 'wn34_ch3_batt',
+        'wn34_ch4_batt': 'wn34_ch4_batt',
+        'wn34_ch5_batt': 'wn34_ch5_batt',
+        'wn34_ch6_batt': 'wn34_ch6_batt',
+        'wn34_ch7_batt': 'wn34_ch7_batt',
+        'wn34_ch8_batt': 'wn34_ch8_batt',
         'wn35_ch1_batt': 'wn35_ch1_batt',
         'wn35_ch2_batt': 'wn35_ch2_batt',
         'wn35_ch3_batt': 'wn35_ch3_batt',
@@ -926,14 +926,14 @@ class Gw1000(object):
         'wh31_ch6_sig': 'wh31_ch6_sig',
         'wh31_ch7_sig': 'wh31_ch7_sig',
         'wh31_ch8_sig': 'wh31_ch8_sig',
-        'wh34_ch1_sig': 'wh34_ch1_sig',
-        'wh34_ch2_sig': 'wh34_ch2_sig',
-        'wh34_ch3_sig': 'wh34_ch3_sig',
-        'wh34_ch4_sig': 'wh34_ch4_sig',
-        'wh34_ch5_sig': 'wh34_ch5_sig',
-        'wh34_ch6_sig': 'wh34_ch6_sig',
-        'wh34_ch7_sig': 'wh34_ch7_sig',
-        'wh34_ch8_sig': 'wh34_ch8_sig',
+        'wn34_ch1_sig': 'wn34_ch1_sig',
+        'wn34_ch2_sig': 'wn34_ch2_sig',
+        'wn34_ch3_sig': 'wn34_ch3_sig',
+        'wn34_ch4_sig': 'wn34_ch4_sig',
+        'wn34_ch5_sig': 'wn34_ch5_sig',
+        'wn34_ch6_sig': 'wn34_ch6_sig',
+        'wn34_ch7_sig': 'wn34_ch7_sig',
+        'wn34_ch8_sig': 'wn34_ch8_sig',
         'wn35_ch1_sig': 'wn35_ch1_sig',
         'wn35_ch2_sig': 'wn35_ch2_sig',
         'wn35_ch3_sig': 'wn35_ch3_sig',
@@ -2334,14 +2334,14 @@ class Gw1000Collector(Collector):
         b'\x0b': {'name': 'wh31_ch6', 'long_name': 'WH31 ch6', 'batt_fn': 'batt_binary'},
         b'\x0c': {'name': 'wh31_ch7', 'long_name': 'WH31 ch7', 'batt_fn': 'batt_binary'},
         b'\x0d': {'name': 'wh31_ch8', 'long_name': 'WH31 ch8', 'batt_fn': 'batt_binary'},
-        b'\x0e': {'name': 'wh51_ch1', 'long_name': 'WH51 ch1', 'batt_fn': 'batt_binary'},
-        b'\x0f': {'name': 'wh51_ch2', 'long_name': 'WH51 ch2', 'batt_fn': 'batt_binary'},
-        b'\x10': {'name': 'wh51_ch3', 'long_name': 'WH51 ch3', 'batt_fn': 'batt_binary'},
-        b'\x11': {'name': 'wh51_ch4', 'long_name': 'WH51 ch4', 'batt_fn': 'batt_binary'},
-        b'\x12': {'name': 'wh51_ch5', 'long_name': 'WH51 ch5', 'batt_fn': 'batt_binary'},
-        b'\x13': {'name': 'wh51_ch6', 'long_name': 'WH51 ch6', 'batt_fn': 'batt_binary'},
-        b'\x14': {'name': 'wh51_ch7', 'long_name': 'WH51 ch7', 'batt_fn': 'batt_binary'},
-        b'\x15': {'name': 'wh51_ch8', 'long_name': 'WH51 ch8', 'batt_fn': 'batt_binary'},
+        b'\x0e': {'name': 'wh51_ch1', 'long_name': 'WH51 ch1', 'batt_fn': 'batt_volt_tenth'},
+        b'\x0f': {'name': 'wh51_ch2', 'long_name': 'WH51 ch2', 'batt_fn': 'batt_volt_tenth'},
+        b'\x10': {'name': 'wh51_ch3', 'long_name': 'WH51 ch3', 'batt_fn': 'batt_volt_tenth'},
+        b'\x11': {'name': 'wh51_ch4', 'long_name': 'WH51 ch4', 'batt_fn': 'batt_volt_tenth'},
+        b'\x12': {'name': 'wh51_ch5', 'long_name': 'WH51 ch5', 'batt_fn': 'batt_volt_tenth'},
+        b'\x13': {'name': 'wh51_ch6', 'long_name': 'WH51 ch6', 'batt_fn': 'batt_volt_tenth'},
+        b'\x14': {'name': 'wh51_ch7', 'long_name': 'WH51 ch7', 'batt_fn': 'batt_volt_tenth'},
+        b'\x15': {'name': 'wh51_ch8', 'long_name': 'WH51 ch8', 'batt_fn': 'batt_volt_tenth'},
         b'\x16': {'name': 'wh41_ch1', 'long_name': 'WH41 ch1', 'batt_fn': 'batt_int'},
         b'\x17': {'name': 'wh41_ch2', 'long_name': 'WH41 ch2', 'batt_fn': 'batt_int'},
         b'\x18': {'name': 'wh41_ch3', 'long_name': 'WH41 ch3', 'batt_fn': 'batt_int'},
@@ -2351,14 +2351,14 @@ class Gw1000Collector(Collector):
         b'\x1c': {'name': 'wh55_ch2', 'long_name': 'WH55 ch2', 'batt_fn': 'batt_int'},
         b'\x1d': {'name': 'wh55_ch3', 'long_name': 'WH55 ch3', 'batt_fn': 'batt_int'},
         b'\x1e': {'name': 'wh55_ch4', 'long_name': 'WH55 ch4', 'batt_fn': 'batt_int'},
-        b'\x1f': {'name': 'wh34_ch1', 'long_name': 'WH34 ch1', 'batt_fn': 'batt_volt'},
-        b'\x20': {'name': 'wh34_ch2', 'long_name': 'WH34 ch2', 'batt_fn': 'batt_volt'},
-        b'\x21': {'name': 'wh34_ch3', 'long_name': 'WH34 ch3', 'batt_fn': 'batt_volt'},
-        b'\x22': {'name': 'wh34_ch4', 'long_name': 'WH34 ch4', 'batt_fn': 'batt_volt'},
-        b'\x23': {'name': 'wh34_ch5', 'long_name': 'WH34 ch5', 'batt_fn': 'batt_volt'},
-        b'\x24': {'name': 'wh34_ch6', 'long_name': 'WH34 ch6', 'batt_fn': 'batt_volt'},
-        b'\x25': {'name': 'wh34_ch7', 'long_name': 'WH34 ch7', 'batt_fn': 'batt_volt'},
-        b'\x26': {'name': 'wh34_ch8', 'long_name': 'WH34 ch8', 'batt_fn': 'batt_volt'},
+        b'\x1f': {'name': 'wn34_ch1', 'long_name': 'WN34 ch1', 'batt_fn': 'batt_volt'},
+        b'\x20': {'name': 'wn34_ch2', 'long_name': 'WN34 ch2', 'batt_fn': 'batt_volt'},
+        b'\x21': {'name': 'wn34_ch3', 'long_name': 'WN34 ch3', 'batt_fn': 'batt_volt'},
+        b'\x22': {'name': 'wn34_ch4', 'long_name': 'WN34 ch4', 'batt_fn': 'batt_volt'},
+        b'\x23': {'name': 'wn34_ch5', 'long_name': 'WN34 ch5', 'batt_fn': 'batt_volt'},
+        b'\x24': {'name': 'wn34_ch6', 'long_name': 'WN34 ch6', 'batt_fn': 'batt_volt'},
+        b'\x25': {'name': 'wn34_ch7', 'long_name': 'WN34 ch7', 'batt_fn': 'batt_volt'},
+        b'\x26': {'name': 'wn34_ch8', 'long_name': 'WN34 ch8', 'batt_fn': 'batt_volt'},
         b'\x27': {'name': 'wh45', 'long_name': 'WH45', 'batt_fn': 'batt_int'},
         b'\x28': {'name': 'wn35_ch1', 'long_name': 'WN35 ch1', 'batt_fn': 'batt_volt'},
         b'\x29': {'name': 'wn35_ch2', 'long_name': 'WNH35 ch2', 'batt_fn': 'batt_volt'},
@@ -3210,7 +3210,8 @@ class Gw1000Collector(Collector):
                 socket_obj.close()
             return result_list
 
-        def decode_broadcast_response(self, raw_data):
+        @staticmethod
+        def decode_broadcast_response(raw_data):
             """Decode a broadcast response and return the results as a dict.
 
             A GW1000 response to a CMD_BROADCAST API command consists of a
@@ -3238,7 +3239,7 @@ class Gw1000Collector(Collector):
             data payload whereby the first character of the GW1000 AP SSID is a
             non-printable ASCII character. The WS View app appears to ignore or
             not display this character nor does it appear to be used elsewhere.
-            Consequently this characater is ignored.
+            Consequently this character is ignored.
 
             raw_data:   a bytestring containing a validated (structure and
                         checksum verified) raw data response to the
@@ -4483,7 +4484,7 @@ class Gw1000Collector(Collector):
                         return "OK"
                     else:
                         return 'Unknown'
-                elif batt_fn == 'batt_volt':
+                elif batt_fn == 'batt_volt' or batt_fn == 'batt_volt_tenth':
                     if value <= 1.2:
                         return "low"
                     else:
@@ -4517,13 +4518,23 @@ class Gw1000Collector(Collector):
 
         @staticmethod
         def batt_volt(batt):
-            """Decode a voltage battery state.
+            """Decode a voltage battery state in 2mV increments.
 
             Battery state is stored as integer values of battery voltage/0.02
             with <=1.2V considered low.
             """
 
             return round(0.02 * batt, 2)
+
+        @staticmethod
+        def batt_volt_tenth(batt):
+            """Decode a voltage battery state in 100mV increments.
+
+            Battery state is stored as integer values of battery voltage/0.1
+            with <=1.2V considered low.
+            """
+
+            return round(0.1 * batt, 1)
 
 
 # ============================================================================
@@ -4769,14 +4780,14 @@ class DirectGw1000(object):
         'wh31_ch6_batt': 'group_count',
         'wh31_ch7_batt': 'group_count',
         'wh31_ch8_batt': 'group_count',
-        'wh34_ch1_batt': 'group_volt',
-        'wh34_ch2_batt': 'group_volt',
-        'wh34_ch3_batt': 'group_volt',
-        'wh34_ch4_batt': 'group_volt',
-        'wh34_ch5_batt': 'group_volt',
-        'wh34_ch6_batt': 'group_volt',
-        'wh34_ch7_batt': 'group_volt',
-        'wh34_ch8_batt': 'group_volt',
+        'wn34_ch1_batt': 'group_volt',
+        'wn34_ch2_batt': 'group_volt',
+        'wn34_ch3_batt': 'group_volt',
+        'wn34_ch4_batt': 'group_volt',
+        'wn34_ch5_batt': 'group_volt',
+        'wn34_ch6_batt': 'group_volt',
+        'wn34_ch7_batt': 'group_volt',
+        'wn34_ch8_batt': 'group_volt',
         'wn35_ch1_batt': 'group_volt',
         'wn35_ch2_batt': 'group_volt',
         'wn35_ch3_batt': 'group_volt',
@@ -4790,22 +4801,22 @@ class DirectGw1000(object):
         'wh41_ch3_batt': 'group_count',
         'wh41_ch4_batt': 'group_count',
         'wh45_batt': 'group_count',
-        'wh51_ch1_batt': 'group_count',
-        'wh51_ch2_batt': 'group_count',
-        'wh51_ch3_batt': 'group_count',
-        'wh51_ch4_batt': 'group_count',
-        'wh51_ch5_batt': 'group_count',
-        'wh51_ch6_batt': 'group_count',
-        'wh51_ch7_batt': 'group_count',
-        'wh51_ch8_batt': 'group_count',
-        'wh51_ch9_batt': 'group_count',
-        'wh51_ch10_batt': 'group_count',
-        'wh51_ch11_batt': 'group_count',
-        'wh51_ch12_batt': 'group_count',
-        'wh51_ch13_batt': 'group_count',
-        'wh51_ch14_batt': 'group_count',
-        'wh51_ch15_batt': 'group_count',
-        'wh51_ch16_batt': 'group_count',
+        'wh51_ch1_batt': 'group_volt',
+        'wh51_ch2_batt': 'group_volt',
+        'wh51_ch3_batt': 'group_volt',
+        'wh51_ch4_batt': 'group_volt',
+        'wh51_ch5_batt': 'group_volt',
+        'wh51_ch6_batt': 'group_volt',
+        'wh51_ch7_batt': 'group_volt',
+        'wh51_ch8_batt': 'group_volt',
+        'wh51_ch9_batt': 'group_volt',
+        'wh51_ch10_batt': 'group_volt',
+        'wh51_ch11_batt': 'group_volt',
+        'wh51_ch12_batt': 'group_volt',
+        'wh51_ch13_batt': 'group_volt',
+        'wh51_ch14_batt': 'group_volt',
+        'wh51_ch15_batt': 'group_volt',
+        'wh51_ch16_batt': 'group_volt',
         'wh55_ch1_batt': 'group_count',
         'wh55_ch2_batt': 'group_count',
         'wh55_ch3_batt': 'group_count',
@@ -4826,14 +4837,14 @@ class DirectGw1000(object):
         'wh31_ch6_sig': 'group_count',
         'wh31_ch7_sig': 'group_count',
         'wh31_ch8_sig': 'group_count',
-        'wh34_ch1_sig': 'group_count',
-        'wh34_ch2_sig': 'group_count',
-        'wh34_ch3_sig': 'group_count',
-        'wh34_ch4_sig': 'group_count',
-        'wh34_ch5_sig': 'group_count',
-        'wh34_ch6_sig': 'group_count',
-        'wh34_ch7_sig': 'group_count',
-        'wh34_ch8_sig': 'group_count',
+        'wn34_ch1_sig': 'group_count',
+        'wn34_ch2_sig': 'group_count',
+        'wn34_ch3_sig': 'group_count',
+        'wn34_ch4_sig': 'group_count',
+        'wn34_ch5_sig': 'group_count',
+        'wn34_ch6_sig': 'group_count',
+        'wn34_ch7_sig': 'group_count',
+        'wn34_ch8_sig': 'group_count',
         'wn35_ch1_sig': 'group_count',
         'wn35_ch2_sig': 'group_count',
         'wn35_ch3_sig': 'group_count',
@@ -5713,7 +5724,7 @@ class DirectGw1000(object):
             # Now get a formatter, we could use the
             # weewx.units.default_unit_format_dict but we need voltages
             # formatted to two decimal places. So take a copy of the default
-            # unit format dict, chnage the 'volt' format to suit and use that.
+            # unit format dict, change the 'volt' format to suit and use that.
             gw1000_unit_format_dict = dict(weewx.units.default_unit_format_dict)
             gw1000_unit_format_dict['volt'] = '%.2f'
             f = weewx.units.Formatter(unit_format_dict=gw1000_unit_format_dict,
@@ -6099,4 +6110,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
