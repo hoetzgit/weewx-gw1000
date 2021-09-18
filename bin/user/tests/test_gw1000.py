@@ -192,14 +192,14 @@ class ParseTestCase(unittest.TestCase):
         b'\x62': ('decode_count', 4, 'lightningcount'),
         # WH34 battery data is not obtained from live data rather it is
         # obtained from sensor ID data
-        b'\x63': ('decode_wh34', 3, 'temp9'),
-        b'\x64': ('decode_wh34', 3, 'temp10'),
-        b'\x65': ('decode_wh34', 3, 'temp11'),
-        b'\x66': ('decode_wh34', 3, 'temp12'),
-        b'\x67': ('decode_wh34', 3, 'temp13'),
-        b'\x68': ('decode_wh34', 3, 'temp14'),
-        b'\x69': ('decode_wh34', 3, 'temp15'),
-        b'\x6A': ('decode_wh34', 3, 'temp16'),
+        b'\x63': ('decode_wn34', 3, 'temp9'),
+        b'\x64': ('decode_wn34', 3, 'temp10'),
+        b'\x65': ('decode_wn34', 3, 'temp11'),
+        b'\x66': ('decode_wn34', 3, 'temp12'),
+        b'\x67': ('decode_wn34', 3, 'temp13'),
+        b'\x68': ('decode_wn34', 3, 'temp14'),
+        b'\x69': ('decode_wn34', 3, 'temp15'),
+        b'\x6A': ('decode_wn34', 3, 'temp16'),
         b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
                                       'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
                                       'co2', 'co2_24h_avg')),
@@ -430,12 +430,12 @@ class ParseTestCase(unittest.TestCase):
         # test wh34 decode (method decode_co2())
         pass
 
-        # test wh34 decode (method decode_wh34())
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(self.wh34_data['hex']), field=self.wh34_data['field']),
+        # test wh34 decode (method decode_wn34())
+        self.assertEqual(self.parser.decode_wn34(hex_to_bytes(self.wh34_data['hex']), field=self.wh34_data['field']),
                          self.wh34_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(1)), field=self.wh34_data['field']), {})
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(4)), field=self.wh34_data['field']), {})
+        self.assertEqual(self.parser.decode_wn34(hex_to_bytes(xbytes(1)), field=self.wh34_data['field']), {})
+        self.assertEqual(self.parser.decode_wn34(hex_to_bytes(xbytes(4)), field=self.wh34_data['field']), {})
 
         # test wh45 decode (method decode_wh45())
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(self.wh45_data['hex']), fields=self.wh45_data['field']),

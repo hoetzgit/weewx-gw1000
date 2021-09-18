@@ -38,7 +38,6 @@ Revision History
         -   implemented debug_wind reporting
         -   re-factored debug_rain reporting to report both 'WeeWX' and
             'GW1000' rain related fields
-    22 April 2021           v0.3.2
         -   battery state data is now set to None for sensors with signal
             level == 0, can be disabled by setting option
             show_all_batt = True under [GW1000] in weewx.conf or by use of
@@ -50,6 +49,8 @@ Revision History
             and labels
         -   fixed some incorrect command line option descriptions
         -   simplified binary battery state calculation
+        -   renamed WH35 (as per API documentation) to WN35 (actual hardware
+            nomenclature)
     28 March 2021           v0.3.1
         -   fixed error when broadcast port or socket timeout is specified in
             weewx.conf
@@ -364,21 +365,21 @@ method):
                 extractor = last
             [[wh34_ch8_sig]]
                 extractor = last
-            [[wh35_ch1_sig]]
+            [[wn35_ch1_sig]]
                 extractor = last
-            [[wh35_ch2_sig]]
+            [[wn35_ch2_sig]]
                 extractor = last
-            [[wh35_ch3_sig]]
+            [[wn35_ch3_sig]]
                 extractor = last
-            [[wh35_ch4_sig]]
+            [[wn35_ch4_sig]]
                 extractor = last
-            [[wh35_ch5_sig]]
+            [[wn35_ch5_sig]]
                 extractor = last
-            [[wh35_ch6_sig]]
+            [[wn35_ch6_sig]]
                 extractor = last
-            [[wh35_ch7_sig]]
+            [[wn35_ch7_sig]]
                 extractor = last
-            [[wh35_ch8_sig]]
+            [[wn35_ch8_sig]]
                 extractor = last
             [[wh41_ch3_sig]]
                 extractor = last
@@ -872,14 +873,14 @@ class Gw1000(object):
         'wh34_ch6_batt': 'wh34_ch6_batt',
         'wh34_ch7_batt': 'wh34_ch7_batt',
         'wh34_ch8_batt': 'wh34_ch8_batt',
-        'wh35_ch1_batt': 'wh35_ch1_batt',
-        'wh35_ch2_batt': 'wh35_ch2_batt',
-        'wh35_ch3_batt': 'wh35_ch3_batt',
-        'wh35_ch4_batt': 'wh35_ch4_batt',
-        'wh35_ch5_batt': 'wh35_ch5_batt',
-        'wh35_ch6_batt': 'wh35_ch6_batt',
-        'wh35_ch7_batt': 'wh35_ch7_batt',
-        'wh35_ch8_batt': 'wh35_ch8_batt',
+        'wn35_ch1_batt': 'wn35_ch1_batt',
+        'wn35_ch2_batt': 'wn35_ch2_batt',
+        'wn35_ch3_batt': 'wn35_ch3_batt',
+        'wn35_ch4_batt': 'wn35_ch4_batt',
+        'wn35_ch5_batt': 'wn35_ch5_batt',
+        'wn35_ch6_batt': 'wn35_ch6_batt',
+        'wn35_ch7_batt': 'wn35_ch7_batt',
+        'wn35_ch8_batt': 'wn35_ch8_batt',
         'wh41_ch1_batt': 'wh41_ch1_batt',
         'wh41_ch2_batt': 'wh41_ch2_batt',
         'wh41_ch3_batt': 'wh41_ch3_batt',
@@ -933,14 +934,14 @@ class Gw1000(object):
         'wh34_ch6_sig': 'wh34_ch6_sig',
         'wh34_ch7_sig': 'wh34_ch7_sig',
         'wh34_ch8_sig': 'wh34_ch8_sig',
-        'wh35_ch1_sig': 'wh35_ch1_sig',
-        'wh35_ch2_sig': 'wh35_ch2_sig',
-        'wh35_ch3_sig': 'wh35_ch3_sig',
-        'wh35_ch4_sig': 'wh35_ch4_sig',
-        'wh35_ch5_sig': 'wh35_ch5_sig',
-        'wh35_ch6_sig': 'wh35_ch6_sig',
-        'wh35_ch7_sig': 'wh35_ch7_sig',
-        'wh35_ch8_sig': 'wh35_ch8_sig',
+        'wn35_ch1_sig': 'wn35_ch1_sig',
+        'wn35_ch2_sig': 'wn35_ch2_sig',
+        'wn35_ch3_sig': 'wn35_ch3_sig',
+        'wn35_ch4_sig': 'wn35_ch4_sig',
+        'wn35_ch5_sig': 'wn35_ch5_sig',
+        'wn35_ch6_sig': 'wn35_ch6_sig',
+        'wn35_ch7_sig': 'wn35_ch7_sig',
+        'wn35_ch8_sig': 'wn35_ch8_sig',
         'wh41_ch1_sig': 'wh41_ch1_sig',
         'wh41_ch2_sig': 'wh41_ch2_sig',
         'wh41_ch3_sig': 'wh41_ch3_sig',
@@ -1789,21 +1790,21 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[wh31_ch8_batt]]
             extractor = last
-        [[wh35_ch1_batt]]
+        [[wn35_ch1_batt]]
             extractor = last
-        [[wh35_ch2_batt]]
+        [[wn35_ch2_batt]]
             extractor = last
-        [[wh35_ch3_batt]]
+        [[wn35_ch3_batt]]
             extractor = last
-        [[wh35_ch4_batt]]
+        [[wn35_ch4_batt]]
             extractor = last
-        [[wh35_ch5_batt]]
+        [[wn35_ch5_batt]]
             extractor = last
-        [[wh35_ch6_batt]]
+        [[wn35_ch6_batt]]
             extractor = last
-        [[wh35_ch7_batt]]
+        [[wn35_ch7_batt]]
             extractor = last
-        [[wh35_ch8_batt]]
+        [[wn35_ch8_batt]]
             extractor = last
         [[wh41_ch1_batt]]
             extractor = last
@@ -1885,21 +1886,21 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[wh31_ch8_sig]]
             extractor = last
-        [[wh35_ch1_sig]]
+        [[wn35_ch1_sig]]
             extractor = last
-        [[wh35_ch2_sig]]
+        [[wn35_ch2_sig]]
             extractor = last
-        [[wh35_ch3_sig]]
+        [[wn35_ch3_sig]]
             extractor = last
-        [[wh35_ch4_sig]]
+        [[wn35_ch4_sig]]
             extractor = last
-        [[wh35_ch5_sig]]
+        [[wn35_ch5_sig]]
             extractor = last
-        [[wh35_ch6_sig]]
+        [[wn35_ch6_sig]]
             extractor = last
-        [[wh35_ch7_sig]]
+        [[wn35_ch7_sig]]
             extractor = last
-        [[wh35_ch8_sig]]
+        [[wn35_ch8_sig]]
             extractor = last
         [[wh41_ch1_sig]]
             extractor = last
@@ -2359,14 +2360,14 @@ class Gw1000Collector(Collector):
         b'\x25': {'name': 'wh34_ch7', 'long_name': 'WH34 ch7', 'batt_fn': 'batt_volt'},
         b'\x26': {'name': 'wh34_ch8', 'long_name': 'WH34 ch8', 'batt_fn': 'batt_volt'},
         b'\x27': {'name': 'wh45', 'long_name': 'WH45', 'batt_fn': 'batt_int'},
-        b'\x28': {'name': 'wh35_ch1', 'long_name': 'WH35 ch1', 'batt_fn': 'batt_volt'},
-        b'\x29': {'name': 'wh35_ch2', 'long_name': 'WH35 ch2', 'batt_fn': 'batt_volt'},
-        b'\x2a': {'name': 'wh35_ch3', 'long_name': 'WH35 ch3', 'batt_fn': 'batt_volt'},
-        b'\x2b': {'name': 'wh35_ch4', 'long_name': 'WH35 ch4', 'batt_fn': 'batt_volt'},
-        b'\x2c': {'name': 'wh35_ch5', 'long_name': 'WH35 ch5', 'batt_fn': 'batt_volt'},
-        b'\x2d': {'name': 'wh35_ch6', 'long_name': 'WH35 ch6', 'batt_fn': 'batt_volt'},
-        b'\x2e': {'name': 'wh35_ch7', 'long_name': 'WH35 ch7', 'batt_fn': 'batt_volt'},
-        b'\x2f': {'name': 'wh35_ch8', 'long_name': 'WH35 ch8', 'batt_fn': 'batt_volt'}
+        b'\x28': {'name': 'wn35_ch1', 'long_name': 'WN35 ch1', 'batt_fn': 'batt_volt'},
+        b'\x29': {'name': 'wn35_ch2', 'long_name': 'WNH35 ch2', 'batt_fn': 'batt_volt'},
+        b'\x2a': {'name': 'wn35_ch3', 'long_name': 'WN35 ch3', 'batt_fn': 'batt_volt'},
+        b'\x2b': {'name': 'wn35_ch4', 'long_name': 'WN35 ch4', 'batt_fn': 'batt_volt'},
+        b'\x2c': {'name': 'wn35_ch5', 'long_name': 'WN35 ch5', 'batt_fn': 'batt_volt'},
+        b'\x2d': {'name': 'wn35_ch6', 'long_name': 'WN35 ch6', 'batt_fn': 'batt_volt'},
+        b'\x2e': {'name': 'wn35_ch7', 'long_name': 'WN35 ch7', 'batt_fn': 'batt_volt'},
+        b'\x2f': {'name': 'wn35_ch8', 'long_name': 'WN35 ch8', 'batt_fn': 'batt_volt'}
     }
     # list of dicts of weather services that I know about
     services = [{'name': 'ecowitt_net',
@@ -3937,16 +3938,16 @@ class Gw1000Collector(Collector):
             b'\x60': ('decode_distance', 1, 'lightningdist'),
             b'\x61': ('decode_utc', 4, 'lightningdettime'),
             b'\x62': ('decode_count', 4, 'lightningcount'),
-            # WH34 battery data is not obtained from live data rather it is
-            # obtained from sensor ID data
-            b'\x63': ('decode_wh34', 3, 'temp9'),
-            b'\x64': ('decode_wh34', 3, 'temp10'),
-            b'\x65': ('decode_wh34', 3, 'temp11'),
-            b'\x66': ('decode_wh34', 3, 'temp12'),
-            b'\x67': ('decode_wh34', 3, 'temp13'),
-            b'\x68': ('decode_wh34', 3, 'temp14'),
-            b'\x69': ('decode_wh34', 3, 'temp15'),
-            b'\x6A': ('decode_wh34', 3, 'temp16'),
+            # WN34L/WN34S battery data is not obtained from live data rather it
+            # is obtained from sensor ID data
+            b'\x63': ('decode_wn34', 3, 'temp9'),
+            b'\x64': ('decode_wn34', 3, 'temp10'),
+            b'\x65': ('decode_wn34', 3, 'temp11'),
+            b'\x66': ('decode_wn34', 3, 'temp12'),
+            b'\x67': ('decode_wn34', 3, 'temp13'),
+            b'\x68': ('decode_wn34', 3, 'temp14'),
+            b'\x69': ('decode_wn34', 3, 'temp15'),
+            b'\x6A': ('decode_wn34', 3, 'temp16'),
             # WH45 battery data is not obtained from live data rather it is
             # obtained from sensor ID data
             b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
@@ -4240,8 +4241,8 @@ class Gw1000Collector(Collector):
         decode_co2 = decode_dir
         decode_wet = decode_humid
 
-        def decode_wh34(self, data, field=None):
-            """Decode WH34 sensor data.
+        def decode_wn34(self, data, field=None):
+            """Decode WN34L/WN34S sensor data.
 
             Data consists of three bytes:
 
@@ -4793,14 +4794,14 @@ class DirectGw1000(object):
         'wh34_ch6_batt': 'group_volt',
         'wh34_ch7_batt': 'group_volt',
         'wh34_ch8_batt': 'group_volt',
-        'wh35_ch1_batt': 'group_volt',
-        'wh35_ch2_batt': 'group_volt',
-        'wh35_ch3_batt': 'group_volt',
-        'wh35_ch4_batt': 'group_volt',
-        'wh35_ch5_batt': 'group_volt',
-        'wh35_ch6_batt': 'group_volt',
-        'wh35_ch7_batt': 'group_volt',
-        'wh35_ch8_batt': 'group_volt',
+        'wn35_ch1_batt': 'group_volt',
+        'wn35_ch2_batt': 'group_volt',
+        'wn35_ch3_batt': 'group_volt',
+        'wn35_ch4_batt': 'group_volt',
+        'wn35_ch5_batt': 'group_volt',
+        'wn35_ch6_batt': 'group_volt',
+        'wn35_ch7_batt': 'group_volt',
+        'wn35_ch8_batt': 'group_volt',
         'wh41_ch1_batt': 'group_count',
         'wh41_ch2_batt': 'group_count',
         'wh41_ch3_batt': 'group_count',
@@ -4850,14 +4851,14 @@ class DirectGw1000(object):
         'wh34_ch6_sig': 'group_count',
         'wh34_ch7_sig': 'group_count',
         'wh34_ch8_sig': 'group_count',
-        'wh35_ch1_sig': 'group_count',
-        'wh35_ch2_sig': 'group_count',
-        'wh35_ch3_sig': 'group_count',
-        'wh35_ch4_sig': 'group_count',
-        'wh35_ch5_sig': 'group_count',
-        'wh35_ch6_sig': 'group_count',
-        'wh35_ch7_sig': 'group_count',
-        'wh35_ch8_sig': 'group_count',
+        'wn35_ch1_sig': 'group_count',
+        'wn35_ch2_sig': 'group_count',
+        'wn35_ch3_sig': 'group_count',
+        'wn35_ch4_sig': 'group_count',
+        'wn35_ch5_sig': 'group_count',
+        'wn35_ch6_sig': 'group_count',
+        'wn35_ch7_sig': 'group_count',
+        'wn35_ch8_sig': 'group_count',
         'wh41_ch1_sig': 'group_count',
         'wh41_ch2_sig': 'group_count',
         'wh41_ch3_sig': 'group_count',
