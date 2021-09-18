@@ -3828,23 +3828,6 @@ class Gw1000Collector(Collector):
                       'wh25': {'mask': 1 << 6},
                       'wh65': {'mask': 1 << 7}
                       }
-        # # TODO. Is this needed, here or elsewhere and is it complete
-        # # TODO. Possibly delete, no usage found
-        # battery_state_desc = {'wh24': 'binary_desc',
-        #                       'wh25': 'binary_desc',
-        #                       'wh26': 'binary_desc',
-        #                       'wh31': 'binary_desc',
-        #                       'wh32': 'binary_desc',
-        #                       'wh35': 'binary_desc',
-        #                       'wh40': 'binary_desc',
-        #                       'wh41': 'level_desc',
-        #                       'wh51': 'binary_desc',
-        #                       'wh55': 'level_desc',
-        #                       'wh57': 'level_desc',
-        #                       'wh65': 'binary_desc',
-        #                       'wh68': 'voltage_desc',
-        #                       'ws80': 'voltage_desc',
-        #                       }
         # Dictionary keyed by GW1000 response element containing various
         # parameters for each response 'field'. Dictionary tuple format
         # is (decode function name, size of data in bytes, GW1000 field name)
