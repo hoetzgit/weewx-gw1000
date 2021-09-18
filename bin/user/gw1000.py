@@ -97,6 +97,23 @@ Revision History
         - initial release
 
 
+The following deviations from the GW1000/GW1100 API are used in this driver:
+
+1.  CMD_READ_SENSOR_ID documentation indicates that the WH41 battery state
+values are an integer from 0 to 5. There is no specific information in the API
+documentation for WH43 battery states, but data in practise the API returns
+integer value 6 when WH43 is powered by DC.
+
+2. CMD_READ_SSSS documentation states that 'UTC time' is part of the data
+returned by the CMD_READ_SSSS API command. The UTC time field returned is a
+four byte integer containing a Unix epoch timestamp; however, the timestamp is
+offset from UTC time by the GW1000 timezone. In other words, two GW1000 in
+different timezones that have their system time correctly set will return
+different values for UTC time. The GW1000 driver subtracts the system UTC
+offset in seconds from the UTC time retruned by the CMD_READ_SSSS command in
+order to obtain the correct UTC time.
+
+
 Before using this driver:
 
 Before running WeeWX with the GW1000 driver you may wish to run the driver
@@ -5186,7 +5203,7 @@ class DirectGw1000(object):
                     # the API returns channels starting at 0, but the WS View
                     # app displays channels starting at 1, so add 1 to our
                     # channel number
-                    print(mulch_str % (channel+1,
+                    print(mulch_str % (channel + 1,
                                        "%2.1f" % mulch_offset_data[channel]['temp'],
                                        "%d" % mulch_offset_data[channel]['hum']))
             else:
@@ -5370,7 +5387,7 @@ class DirectGw1000(object):
                     # the API returns channels starting at 0, but the WS View
                     # app displays channels starting at 1, so add 1 to our
                     # channel number
-                    print("Channel %d (%d%%)" % (channel+1, channel_dict['humidity']))
+                    print("Channel %d (%d%%)" % (channel + 1, channel_dict['humidity']))
                     print("%12s: %d" % ("Now AD", channel_dict['ad']))
                     print("%12s: %d" % ("0% AD", channel_dict['adj_min']))
                     print("%12s: %d" % ("100% AD", channel_dict['adj_max']))
