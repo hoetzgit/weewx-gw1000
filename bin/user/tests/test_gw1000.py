@@ -22,7 +22,7 @@ To run the test suite:
 
 -   run the test suite using:
 
-    $ PYTHONPATH=$BIN python3 -m user.tests.test_gw1000
+    $ PYTHONPATH=$BIN python3 -m user.tests.test_gw1000 [-v]
 """
 # python imports
 import struct
@@ -59,7 +59,7 @@ class SensorsTestCase(unittest.TestCase):
         self.sensors = user.gw1000.Gw1000Collector.Sensors()
 
     def test_battery_methods(self):
-        """Test methods used to determine battery states."""
+        """Test battery state methods"""
 
         # binary battery states (method batt_binary())
         self.assertEqual(self.sensors.batt_binary(255), 1)
@@ -283,7 +283,7 @@ class ParseTestCase(unittest.TestCase):
         pass
 
     def test_constants(self):
-        """Test constants used by class Parser()."""
+        """Test constants"""
 
         # test battery mask dicts
 
@@ -303,7 +303,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.wind_field_codes, self.wind_field_codes)
 
     def test_decode(self):
-        """Test class Parser() methods used to decode obs bytes."""
+        """Test methods used to decode observation byte data"""
 
         # test temperature decode (method decode_temp())
         self.assertEqual(self.parser.decode_temp(hex_to_bytes(self.temp_data['hex'])),
@@ -450,8 +450,10 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(self.wh45_data['hex']), fields=self.wh45_data['field']),
                          self.wh45_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(1)), fields=self.wh45_data['field']), {})
-        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(17)), fields=self.wh45_data['field']), {})
+        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(1)), fields=self.wh45_data['field']),
+                         {})
+        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(17)), fields=self.wh45_data['field']),
+                         {})
 
         # test parsing of all possible sensors
         self.assertDictEqual(self.parser.parse(raw_data=hex_to_bytes(self.response_data), timestamp=1599021263),
@@ -478,6 +480,13 @@ class UtilitiesTestCase(unittest.TestCase):
     bytes_to_hex_fail_str = "cannot represent '%s' as hexadecimal bytes"
 
     def test_utilities(self):
+        """Test utility functions
+
+        Tests:
+        1. natural_sort_keys()
+        2. natural_sort_dict()
+        3. bytes_to_hex()
+        """
 
         # test natural_sort_keys()
         self.assertEqual(user.gw1000.natural_sort_keys(self.unsorted_dict),
@@ -488,12 +497,16 @@ class UtilitiesTestCase(unittest.TestCase):
                          self.sorted_dict_str)
 
         # test bytes_to_hex()
+        # with defaults
         self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2')),
                          'FF 00 66 B2')
+        # with defaults and a separator
         self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2'), separator=':'),
                          'FF:00:66:B2')
+        # with defaults using lower case
         self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2'), caps=False),
                          'ff 00 66 b2')
+        # with a separator and lower case
         self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2'), separator=':', caps=False),
                          'ff:00:66:b2')
         # and check exceptions raised
@@ -538,19 +551,23 @@ class ListsAndDictsTestCase(unittest.TestCase):
         self.default_field_map = default_field_map
 
     def test_dicts(self):
-        """Test dicts for consistency."""
+        """Test dicts for consistency"""
 
-        # test that each entry in the GW1000 default field map appears in the observation group dictionary
+        # test that each entry in the GW1000 default field map appears in the
+        # observation group dictionary
         for w_field, g_field in six.iteritems(self.default_field_map):
             self.assertIn(g_field,
                           user.gw1000.DirectGw1000.gw1000_obs_group_dict.keys(),
-                          msg="A field from the GW1000 default field map is missing from the observation group dictionary")
+                          msg="A field from the GW1000 default field map is "
+                              "missing from the observation group dictionary")
 
-        # test that each entry in the observation group dictionary is included in the GW1000 default field map
+        # test that each entry in the observation group dictionary is included
+        # in the GW1000 default field map
         for g_field, group in six.iteritems(user.gw1000.DirectGw1000.gw1000_obs_group_dict):
             self.assertIn(g_field,
                           self.default_field_map.values(),
-                          msg="A key from the observation group dictionary is missing from the GW1000 default field map")
+                          msg="A key from the observation group dictionary is "
+                              "missing from the GW1000 default field map")
 
 
 class StationTestCase(unittest.TestCase):
@@ -560,6 +577,57 @@ class StationTestCase(unittest.TestCase):
     read_fware_resp_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1v'
     read_fware_resp_bad_checksum_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1w'
     read_fware_resp_bad_cmd_bytes = b'\xff\xffQ\x11\rGW1000_V1.6.1v'
+    broadcast_response_data = 'FF FF 12 00 26 50 02 91 E3 FD 32 C0 A8 02 20 AF ' \
+                              'C8 16 47 57 31 30 30 30 2D 57 49 46 49 46 44 33 ' \
+                              '32 20 56 31 2E 36 2E 38 5F'
+    decoded_broadcast_response = {'mac': '50:02:91:E3:FD:32',
+                                  'ip_address': '192.168.2.32',
+                                  'port': 45000,
+                                  'ssid': 'GW1000-WIFIFD32 V1.6.8'}
+    cmd = 'CMD_READ_FIRMWARE_VERSION'
+    cmd_payload = '01 02 FF'
+    cmd_packet = 'FF FF 50 06 01 02 FF 58'
+    commands = {
+        'CMD_WRITE_SSID': 'FF FF 11 03 14',
+        'CMD_BROADCAST': 'FF FF 12 03 15',
+        'CMD_READ_ECOWITT': 'FF FF 1E 03 21',
+        'CMD_WRITE_ECOWITT': 'FF FF 1F 03 22',
+        'CMD_READ_WUNDERGROUND': 'FF FF 20 03 23',
+        'CMD_WRITE_WUNDERGROUND': 'FF FF 21 03 24',
+        'CMD_READ_WOW': 'FF FF 22 03 25',
+        'CMD_WRITE_WOW': 'FF FF 23 03 26',
+        'CMD_READ_WEATHERCLOUD': 'FF FF 24 03 27',
+        'CMD_WRITE_WEATHERCLOUD': 'FF FF 25 03 28',
+        'CMD_READ_STATION_MAC': 'FF FF 26 03 29',
+        'CMD_GW1000_LIVEDATA': 'FF FF 27 03 2A',
+        'CMD_GET_SOILHUMIAD': 'FF FF 28 03 2B',
+        'CMD_SET_SOILHUMIAD': 'FF FF 29 03 2C',
+        'CMD_READ_CUSTOMIZED': 'FF FF 2A 03 2D',
+        'CMD_WRITE_CUSTOMIZED': 'FF FF 2B 03 2E',
+        'CMD_GET_MulCH_OFFSET': 'FF FF 2C 03 2F',
+        'CMD_SET_MulCH_OFFSET': 'FF FF 2D 03 30',
+        'CMD_GET_PM25_OFFSET': 'FF FF 2E 03 31',
+        'CMD_SET_PM25_OFFSET': 'FF FF 2F 03 32',
+        'CMD_READ_SSSS': 'FF FF 30 03 33',
+        'CMD_WRITE_SSSS': 'FF FF 31 03 34',
+        'CMD_READ_RAINDATA': 'FF FF 34 03 37',
+        'CMD_WRITE_RAINDATA': 'FF FF 35 03 38',
+        'CMD_READ_GAIN': 'FF FF 36 03 39',
+        'CMD_WRITE_GAIN': 'FF FF 37 03 3A',
+        'CMD_READ_CALIBRATION': 'FF FF 38 03 3B',
+        'CMD_WRITE_CALIBRATION': 'FF FF 39 03 3C',
+        'CMD_READ_SENSOR_ID': 'FF FF 3A 03 3D',
+        'CMD_WRITE_SENSOR_ID': 'FF FF 3B 03 3E',
+        'CMD_READ_SENSOR_ID_NEW': 'FF FF 3C 03 3F',
+        'CMD_WRITE_REBOOT': 'FF FF 40 03 43',
+        'CMD_WRITE_RESET': 'FF FF 41 03 44',
+        'CMD_WRITE_UPDATE': 'FF FF 43 03 46',
+        'CMD_READ_FIRMWARE_VERSION': 'FF FF 50 03 53',
+        'CMD_READ_USR_PATH': 'FF FF 51 03 54',
+        'CMD_WRITE_USR_PATH': 'FF FF 52 03 55',
+        'CMD_GET_CO2_OFFSET': 'FF FF 53 03 56',
+        'CMD_SET_CO2_OFFSET': 'FF FF 54 03 57'
+    }
 
     def setUp(self):
 
@@ -569,18 +637,103 @@ class StationTestCase(unittest.TestCase):
                                                            port=1234,
                                                            mac='1:2:3:4:5:6')
 
-    def test_response(self):
+    def test_cmd_vocab(self):
+        """Test command dictionaries for completeness
+
+        Tests:
+        1. Station.commands contains all commands
+        2. the command code for each Station.commands agrees with the test suite
+        3. all Station.commands entries are in the test suite
+        """
+
+        # Check that the class Station command list is complete. This is a
+        # simple check for (1) inclusion of the command and (2) the command
+        # code (byte) is correct.
+        for cmd, response in six.iteritems(self.commands):
+            # check for inclusion of the command
+            self.assertIn(cmd,
+                          self.station.commands.keys(),
+                          msg="Command '%s' not found in Station.commands" % cmd)
+            # check the command code byte is correct
+            self.assertEqual(hex_to_bytes(response)[2:3],
+                             self.station.commands[cmd],
+                             msg="Command code for command '%s' in "
+                                 "Station.commands(0x%s) disagrees with "
+                                 "command code in test suite (0x%s)" % (cmd,
+                                                                        bytes_to_hex(self.station.commands[cmd]),
+                                                                        bytes_to_hex(hex_to_bytes(response)[2:3])))
+
+        # Check that we are testing everything in class Station command list.
+        # This is a simple check that only needs to check for inclusion of the
+        # command, the validity of the command code is checked in the earlier
+        # iteration.
+        for cmd, code in six.iteritems(self.station.commands):
+            # check for inclusion of the command
+            self.assertIn(cmd,
+                          self.commands.keys(),
+                          msg="Command '%s' is in Station.commands but it is not being tested" % cmd)
+
+    def test_calc_checksum(self):
+        """Test checksum calculation
+
+        Tests:
+        1. calculating the checksum of a bytestring
+        """
 
         # test checksum calculation
         self.assertEqual(self.station.calc_checksum(b'00112233bbccddee'), 168)
+
+    def test_build_cmd_packet(self):
+        """Test construction of an API command packet
+
+        Tests:
+        1. building a command packet for each command in Station.commands
+        2. building a command packet with a payload
+        3. building a command packet for an unknown command
+        """
+
+        # test the command packet built for each API command we know about
+        for cmd, packet in six.iteritems(self.commands):
+            self.assertEqual(self.station.build_cmd_packet(cmd), hex_to_bytes(packet))
+        # test a command packet that has a payload
+        self.assertEqual(self.station.build_cmd_packet(self.cmd, hex_to_bytes(self.cmd_payload)),
+                         hex_to_bytes(self.cmd_packet))
+        # test building a command packet for an unknown command, should be an UnknownCommand exception
+        self.assertRaises(user.gw1000.UnknownCommand,
+                          self.station.build_cmd_packet,
+                          cmd='UNKNOWN_COMMAND')
+
+    def test_decode_broadcast_response(self):
+        """Test decoding of a broadcast response
+
+        Tests:
+        1. decode a broadcast response
+        """
+
+        # get the broadcast response test data as a bytestring
+        data = hex_to_bytes(self.broadcast_response_data)
+        # test broadcast response decode
+        self.assertEqual(self.station.decode_broadcast_response(data), self.decoded_broadcast_response)
+
+    def test_api_response_validity_check(self):
+        """Test validity checking of an API response
+
+        Tests:
+        1. checks Station.check_response() with good data
+        2. checks that Station.check_response() raises an InvalidChecksum
+           exception for a response with an invalid checksum
+        3. checks that Station.check_response() raises an InvalidApiResponse
+           exception for a response with an command code
+        """
+
         # test check_response() with good data, should be no exception
         try:
             self.station.check_response(self.read_fware_resp_bytes,
                                         self.cmd_read_fware_ver)
         except user.gw1000.InvalidChecksum:
-            self.fail("check_reponse() raised an InvalidChecksum exception")
+            self.fail("check_response() raised an InvalidChecksum exception")
         except user.gw1000.InvalidApiResponse:
-            self.fail("check_reponse() raised an InvalidApiResponse exception")
+            self.fail("check_response() raised an InvalidApiResponse exception")
         # test check_response() with a bad checksum data, should be an InvalidChecksum exception
         self.assertRaises(user.gw1000.InvalidChecksum,
                           self.station.check_response,
@@ -626,6 +779,25 @@ def hex_to_bytes(hex_string):
     return struct.pack('B' * len(dec_list), *dec_list)
 
 
+def bytes_to_hex(iterable, separator=' ', caps=True):
+    """Produce a hex string representation of a sequence of bytes."""
+
+    # assume 'iterable' can be iterated by iterbytes and the individual
+    # elements can be formatted with {:02X}
+    format_str = "{:02X}" if caps else "{:02x}"
+    try:
+        return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
+    except ValueError:
+        # most likely we are running python3 and iterable is not a bytestring,
+        # try again coercing iterable to a bytestring
+        return separator.join(format_str.format(c) for c in six.iterbytes(six.b(iterable)))
+    except (TypeError, AttributeError):
+        # TypeError - 'iterable' is not iterable
+        # AttributeError - likely because separator is None
+        # either way we can't represent as a string of hex bytes
+        return "cannot represent '%s' as hexadecimal bytes" % (iterable,)
+
+
 def xbytes(num, hex_string='00', separator=' '):
     """Construct a string of delimited repeated hex pairs.
 
@@ -637,4 +809,4 @@ def xbytes(num, hex_string='00', separator=' '):
 
 
 if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    unittest.main()
