@@ -51,6 +51,7 @@ Revision History
         -   simplified binary battery state calculation
         -   renamed WH35 (as per API documentation) to WN35 (actual hardware
             nomenclature)
+        -   socket objects are now managed via the 'with' context manager
     28 March 2021           v0.3.1
         -   fixed error when broadcast port or socket timeout is specified in
             weewx.conf
@@ -3148,32 +3149,31 @@ class Gw1000Collector(Collector):
             list of IP address/port tuples found.
             """
 
-            # now create a socket object so we can broadcast to the network
-            # use IPv4 UDP
-            socket_obj = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            # set socket datagram to broadcast
-            socket_obj.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            # set timeout
-            socket_obj.settimeout(self.socket_timeout)
-            # set TTL to 1 to so messages do not go past the local network
-            # segment
-            ttl = struct.pack('b', 1)
-            socket_obj.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
-            # construct the packet to broadcast
-            packet = self.build_cmd_packet('CMD_BROADCAST')
-            if weewx.debug >= 3:
-                logdbg("Sending broadcast packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
-                                                                     self.broadcast_address,
-                                                                     self.broadcast_port))
-            # create a list for the results as multiple GW1000 may respond
-            result_list = []
-            try:
+            # create a socket object so we can broadcast to the network via
+            # IPv4 UDP
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                # set socket datagram to broadcast
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+                # set timeout
+                s.settimeout(self.socket_timeout)
+                # set TTL to 1 to so messages do not go past the local network
+                # segment
+                ttl = struct.pack('b', 1)
+                s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
+                # construct the packet to broadcast
+                packet = self.build_cmd_packet('CMD_BROADCAST')
+                if weewx.debug >= 3:
+                    logdbg("Sending broadcast packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
+                                                                         self.broadcast_address,
+                                                                         self.broadcast_port))
+                # create a list for the results as multiple GW1000 may respond
+                result_list = []
                 # send the Broadcast command
-                socket_obj.sendto(packet, (self.broadcast_address, self.broadcast_port))
+                s.sendto(packet, (self.broadcast_address, self.broadcast_port))
                 # obtain any responses
                 while True:
                     try:
-                        response = socket_obj.recv(1024)
+                        response = s.recv(1024)
                         # log the response if debug is high enough
                         if weewx.debug >= 3:
                             logdbg("Received broadcast response '%s'" % (bytes_to_hex(response),))
@@ -3199,15 +3199,14 @@ class Gw1000Collector(Collector):
                                    "to command '%s': %s" % ('CMD_BROADCAST', e))
                             log_traceback_error('    ****  ')
                         else:
+                            # TODO. The next few lines could be better constructed and commented.
                             # our response is valid so ?????
                             device = self.decode_broadcast_response(response)
                             # if we haven't seen this ip address and port add them to
                             # our results list
                             if not any((d['ip_address'] == device['ip_address'] and d['port'] == device['port']) for d in result_list):
                                 result_list.append(device)
-            finally:
-                # we are done so close our socket
-                socket_obj.close()
+            # now return our results
             return result_list
 
         @staticmethod
@@ -3650,21 +3649,21 @@ class Gw1000Collector(Collector):
             """
 
             # create socket objects for sending commands and broadcasting to the network
-            socket_obj = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            socket_obj.settimeout(self.socket_timeout)
-            try:
-                socket_obj.connect((self.ip_address, self.port))
-                if weewx.debug >= 3:
-                    logdbg("Sending packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
-                                                               self.ip_address.decode(),
-                                                               self.port))
-                socket_obj.sendall(packet)
-                response = socket_obj.recv(1024)
-                if weewx.debug >= 3:
-                    logdbg("Received response '%s'" % (bytes_to_hex(response),))
-                return response
-            except socket.error:
-                raise
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(self.socket_timeout)
+                try:
+                    s.connect((self.ip_address, self.port))
+                    if weewx.debug >= 3:
+                        logdbg("Sending packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
+                                                                   self.ip_address.decode(),
+                                                                   self.port))
+                    s.sendall(packet)
+                    response = s.recv(1024)
+                    if weewx.debug >= 3:
+                        logdbg("Received response '%s'" % (bytes_to_hex(response),))
+                    return response
+                except socket.error:
+                    raise
 
         def check_response(self, response, cmd_code):
             """Check the validity of a GW1000 API response.
