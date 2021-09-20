@@ -26,12 +26,14 @@ To run the test suite:
 """
 # python imports
 import struct
+import time
 import unittest
 
 # Python 2/3 compatibility shims
 import six
 
 # WeeWX imports
+import weewx
 import user.gw1000
 
 # TODO. Check speed_data data and result are correct
@@ -748,12 +750,76 @@ class StationTestCase(unittest.TestCase):
 
 class Gw1000TestCase(unittest.TestCase):
 
+    # dummy GW1000 data used to exercise the GW1000 to WeeWX mapping
+    gw1000_data = {}
+    # mapped dummy GW1000 data
+    result_datat = {}
+
     def setUp(self):
 
-        pass
+        # Create a dummy config so we can stand up a dummy engine with a dummy
+        # simulator emitting arbitrary loop packets. Only include the GW1000
+        # service, we don't need the others. This will be a loop packets only
+        # setup, no archive records, but that doesn't matter, we just need to
+        # be able to exercise the GW1000 service.
+        config = {
+            'Station': {
+                'station_type': 'Simulator',
+                'altitude': [0, 'meter'],
+                'latitude': 0,
+                'longitude': 0},
+            'Simulator': {
+                'driver': 'weewx.drivers.simulator',
+                'mode': 'simulator'},
+            'GW1000': {},
+            'Engine': {
+                'Services': {
+                    'archive_services': 'user.gw1000.Gw1000Service'}}}
+        # set the IP address and port in the dummy config
+        config['GW1000']['ip_address'] = self.ip_address
+        config['GW1000']['port'] = self.port
+        # assign our dummyTemp field to a unit group so unit conversion works
+        # properly
+        weewx.units.obs_group_dict['dummyTemp'] = 'group_temperature'
+        # wrap in a try..except in case there is an error
+        try:
+            # create a dummy engine
+            engine = weewx.engine.StdEngine(config)
+            # Our GW1000 service will have been instantiated by the engine during
+            # its startup. Whilst access to the service is not normally required we
+            # require access here so we can obtain some info about the station we
+            # are using for this test. The engine does not provide a ready means to
+            # access that GW1000 service so we can do a bit of guessing and iterate
+            # over all of the engine's services and select the one that has a
+            # 'collector' property. Unlikely to cause a problem since there are
+            # only two services in the dummy engine.
+            self.gw1000_svc = None
+            for svc in engine.service_obj:
+                if hasattr(svc, 'collector'):
+                    self.gw1000_svc = svc
+        except user.gw1000.GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except KeyboardInterrupt:
+            engine.shutDown()
+
 
     def test_map(self):
-        pass
+        """Test GW1000Service GW1000 to WeeWX mapping
+
+        Tests:
+        1. mapping of GW1000 data to a WeeWX loop packet
+        """
+
+        # get a mapped  version of our GW1000 test data
+        mapped_gw1000_data = self.gw1000_svc.map_data(self.gw1000_data)
+        # TODO. Will we always have a field 'dateTime'?
+        # check that our mapped data has a field 'dateTime'
+        self.assertIn('dateTime', mapped_gw1000_data)
+        # check that our mapped data has a field 'usUnits'
+        self.assertIn('usUnits', mapped_gw1000_data)
+        # check that the usUnits field is set to weewx.METRICWX
+        self.assertEqual(weewx.METRICWX, mapped_gw1000_data.get('usUnits'))
 
     def test_rain(self):
         pass
