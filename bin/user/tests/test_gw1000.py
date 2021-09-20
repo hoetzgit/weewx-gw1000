@@ -749,13 +749,37 @@ class StationTestCase(unittest.TestCase):
 
 
 class Gw1000TestCase(unittest.TestCase):
+    """Test the GW1000Service.
+
+    Note this test class requires that a GW1000 can be successfully discovered
+    on the local network segment. If a GW1000 cannot/is not discovered then the
+    test class is skipped.
+    """
 
     # dummy GW1000 data used to exercise the GW1000 to WeeWX mapping
-    gw1000_data = {}
+    gw1000_data = {'absbarometer': 1009.3,
+                   'datetime': 1632109437,
+                   'inHumidity': 56,
+                   'inTemp': 27.3,
+                   'lightningcount': 32,
+                   'raintotals': 100.3,
+                   'relbarometer': 1014.3,
+                   'usUnits': 17
+                   }
     # mapped dummy GW1000 data
-    result_datat = {}
+    result_data = {'dateTime': 1632109437,
+                   'inHumidity': 56,
+                   'inTemp': 27.3,
+                   'lightningcount': 32,
+                   'pressure': 1009.3,
+                   'relbarometer': 1014.3,
+                   'totalRain': 100.3,
+                   'usUnits': 17
+                   }
+    increment = 5.6
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
 
         # Create a dummy config so we can stand up a dummy engine with a dummy
         # simulator emitting arbitrary loop packets. Only include the GW1000
@@ -771,20 +795,27 @@ class Gw1000TestCase(unittest.TestCase):
             'Simulator': {
                 'driver': 'weewx.drivers.simulator',
                 'mode': 'simulator'},
-            'GW1000': {},
+            'GW1000': {
+                'ip_address': None,
+                'port': None},
             'Engine': {
                 'Services': {
                     'archive_services': 'user.gw1000.Gw1000Service'}}}
-        # set the IP address and port in the dummy config
-        config['GW1000']['ip_address'] = self.ip_address
-        config['GW1000']['port'] = self.port
-        # assign our dummyTemp field to a unit group so unit conversion works
-        # properly
-        weewx.units.obs_group_dict['dummyTemp'] = 'group_temperature'
+        # this could take some time so display a courtesy message
+        print("Please wait, discovering GW1000 on the local network segment...")
         # wrap in a try..except in case there is an error
         try:
             # create a dummy engine
-            engine = weewx.engine.StdEngine(config)
+            cls.engine = weewx.engine.StdEngine(config)
+        except user.gw1000.GW1000IOError as e:
+            # could not communicate with the GW1000, skip the test
+            # if we have an engine try to shut it down
+            if cls.engine:
+                cls.engine.shutDown()
+            # now raise unittest.SkipTest to skip this test class
+            raise unittest.SkipTest("%s: Unable to connect to GW1000" % (cls.__name__,))
+        else:
+            print("Successfully found a GW1000 on the local network segment")
             # Our GW1000 service will have been instantiated by the engine during
             # its startup. Whilst access to the service is not normally required we
             # require access here so we can obtain some info about the station we
@@ -793,27 +824,37 @@ class Gw1000TestCase(unittest.TestCase):
             # over all of the engine's services and select the one that has a
             # 'collector' property. Unlikely to cause a problem since there are
             # only two services in the dummy engine.
-            self.gw1000_svc = None
-            for svc in engine.service_obj:
+            cls.gw1000_svc = None
+            for svc in cls.engine.service_obj:
                 if hasattr(svc, 'collector'):
-                    self.gw1000_svc = svc
-        except user.gw1000.GW1000IOError as e:
-            print()
-            print("Unable to connect to GW1000: %s" % e)
-        except KeyboardInterrupt:
-            engine.shutDown()
+                    cls.gw1000_svc = svc
+            if cls.gw1000_svc:
+                cls.gw1000_svc.rain_total_field = 'raintotals'
+                cls.gw1000_svc.rain_mapping_confirmed = True
+            else:
+                # we could get the GW1000 service for some reason, shutdown the
+                # engine and skip this test class
+                if cls.engine:
+                    cls.engine.shutDown()
+                # now skip this test class
+                raise unittest.SkipTest("%s: Could not obtain GW1000Service object" % (cls.__name__,))
 
+    @classmethod
+    def tearDown(cls):
+
+        cls.engine.shutDown()
 
     def test_map(self):
         """Test GW1000Service GW1000 to WeeWX mapping
 
         Tests:
-        1. mapping of GW1000 data to a WeeWX loop packet
+        1. field dateTime is included in the GW1000 mapped data
+        2. field usUnits is included in the GW1000 mapped data
+        3. GW1000 obs data is correctly mapped to a WeeWX fields
         """
 
         # get a mapped  version of our GW1000 test data
         mapped_gw1000_data = self.gw1000_svc.map_data(self.gw1000_data)
-        # TODO. Will we always have a field 'dateTime'?
         # check that our mapped data has a field 'dateTime'
         self.assertIn('dateTime', mapped_gw1000_data)
         # check that our mapped data has a field 'usUnits'
@@ -822,10 +863,79 @@ class Gw1000TestCase(unittest.TestCase):
         self.assertEqual(weewx.METRICWX, mapped_gw1000_data.get('usUnits'))
 
     def test_rain(self):
-        pass
+        """Test GW1000Service correctly calculates WeeWX field rain
+
+        Tests:
+        1. field rain is included in the GW1000 data
+        2. field rain is set to None if this is the first packet
+        2. field rain is correctly calculated for a subsequent packet
+        """
+
+        # take a copy of our test data as we will be changing it
+        _gw1000_data = dict(self.gw1000_data)
+        # perform the rain calculation
+        self.gw1000_svc.calculate_rain(_gw1000_data)
+        # check that our data now has field 'rain'
+        self.assertIn('rain', _gw1000_data)
+        # check that the field rain is None as this is the first packet
+        self.assertIsNone(_gw1000_data.get('rain', 1))
+        # increment increase the rainfall in our GW1000 data
+        _gw1000_data['raintotals'] += self.increment
+        # perform the rain calculation
+        self.gw1000_svc.calculate_rain(_gw1000_data)
+        # Check that the field rain is now the increment we used. Use
+        # AlmostEqual as unit conversion could cause assertEqual to fail.
+        self.assertAlmostEqual(_gw1000_data.get('rain'), self.increment, places=3)
+        # check delta_rain calculation
+        # last_rain is None
+        self.assertIsNone(self.gw1000_svc.delta_rain(rain=10.2, last_rain=None))
+        # rain is None
+        self.assertIsNone(self.gw1000_svc.delta_rain(rain=None, last_rain=5.2))
+        # rain < last_rain
+        self.assertEqual(self.gw1000_svc.delta_rain(rain=4.2, last_rain=5.8), 4.2)
+        # rain and last_rain are not None
+        self.assertAlmostEqual(self.gw1000_svc.delta_rain(rain=12.2, last_rain=5.8),
+                               6.4,
+                               places=3)
 
     def test_lightning(self):
-        pass
+        """Test GW1000Service correctly calculates WeeWX field lightning_strike_count
+
+        Tests:
+        1. field lightning_strike_count is included in the GW1000 data
+        2. field lightning_strike_count is set to None if this is the first
+           packet
+        2. field lightning_strike_count is correctly calculated for a
+           subsequent packet
+        """
+
+        # take a copy of our test data as we will be changing it
+        _gw1000_data = dict(self.gw1000_data)
+        # perform the lightning calculation
+        self.gw1000_svc.calculate_lightning_count(_gw1000_data)
+        # check that our data now has field 'lightning_strike_count'
+        self.assertIn('lightning_strike_count', _gw1000_data)
+        # check that the field lightning_strike_count is None as this is the
+        # first packet
+        self.assertIsNone(_gw1000_data.get('lightning_strike_count', 1))
+        # increment increase the lightning count in our GW1000 data
+        _gw1000_data['lightningcount'] += self.increment
+        # perform the lightning calculation
+        self.gw1000_svc.calculate_lightning_count(_gw1000_data)
+        # check that the field lightning_strike_count is now the increment we
+        # used
+        self.assertAlmostEqual(_gw1000_data.get('lightning_strike_count'),
+                               self.increment,
+                               places=1)
+        # check delta_lightning calculation
+        # last_count is None
+        self.assertIsNone(self.gw1000_svc.delta_lightning(count=10, last_count=None))
+        # count is None
+        self.assertIsNone(self.gw1000_svc.delta_lightning(count=None, last_count=5))
+        # count < last_count
+        self.assertEqual(self.gw1000_svc.delta_lightning(count=42, last_count=58), 42)
+        # count and last_count are not None
+        self.assertEqual(self.gw1000_svc.delta_lightning(count=122, last_count=58), 64)
 
 
 def hex_to_bytes(hex_string):
