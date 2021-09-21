@@ -52,6 +52,10 @@ import user.gw1000
 # TODO. Add decode firmware check refer issue #31
 
 
+TEST_SUITE_NAME = "GW1000 driver"
+TEST_SUITE_VERSION = "0.5.0"
+
+
 class SensorsTestCase(unittest.TestCase):
     """Test the Sensors class."""
 
@@ -776,7 +780,14 @@ class Gw1000TestCase(unittest.TestCase):
                    'totalRain': 100.3,
                    'usUnits': 17
                    }
+    # amount to increment delta measurements
     increment = 5.6
+    # IP address to use for contacting GW1000, if None discovery will be
+    # attempted. Can be overridden using --ip-address command line argument.
+    ip_address = None
+    # Port to use for contacting GW1000, if None discovery will be attempted.
+    # Can be overridden using --port command line argument.
+    port = None
 
     @classmethod
     def setUpClass(cls):
@@ -795,14 +806,19 @@ class Gw1000TestCase(unittest.TestCase):
             'Simulator': {
                 'driver': 'weewx.drivers.simulator',
                 'mode': 'simulator'},
-            'GW1000': {
-                'ip_address': None,
-                'port': None},
+            'GW1000': {},
             'Engine': {
                 'Services': {
                     'archive_services': 'user.gw1000.Gw1000Service'}}}
+        # set the IP address and port to use
+        config['GW1000']['ip_address'] = cls.ip_address
+        config['GW1000']['port'] = cls.port
         # this could take some time so display a courtesy message
-        print("Please wait, discovering GW1000 on the local network segment...")
+        if config['GW1000']['ip_address'] is not None and config['GW1000']['port'] is not None:
+            print("Please wait, attempting to contact GW1000 at %s:%d..." % (config['GW1000']['ip_address'],
+                                                                             config['GW1000']['port']))
+        else:
+            print("Please wait, discovering GW1000 on the local network segment...")
         # wrap in a try..except in case there is an error
         try:
             # create a dummy engine
@@ -815,7 +831,6 @@ class Gw1000TestCase(unittest.TestCase):
             # now raise unittest.SkipTest to skip this test class
             raise unittest.SkipTest("%s: Unable to connect to GW1000" % (cls.__name__,))
         else:
-            print("Successfully found a GW1000 on the local network segment")
             # Our GW1000 service will have been instantiated by the engine during
             # its startup. Whilst access to the service is not normally required we
             # require access here so we can obtain some info about the station we
@@ -829,6 +844,8 @@ class Gw1000TestCase(unittest.TestCase):
                 if hasattr(svc, 'collector'):
                     cls.gw1000_svc = svc
             if cls.gw1000_svc:
+                print("Using GW1000 at %s:%d" % (cls.gw1000_svc.collector.station.ip_address.decode(),
+                                                 cls.gw1000_svc.collector.station.port))
                 cls.gw1000_svc.rain_total_field = 'raintotals'
                 cls.gw1000_svc.rain_mapping_confirmed = True
             else:
@@ -984,5 +1001,76 @@ def xbytes(num, hex_string='00', separator=' '):
     return separator.join([hex_string] * num)
 
 
+def suite(test_cases):
+    """Create a TestSuite object containing the tests we are to perform."""
+
+    # get a test loader
+    loader = unittest.TestLoader()
+    # create an empty test suite
+    suite = unittest.TestSuite()
+    # iterate over the test cases we are to add
+    for test_class in test_cases:
+        # get the tests from the test case
+        tests = loader.loadTestsFromTestCase(test_class)
+        # add the tests to the test suite
+        suite.addTests(tests)
+    # finally return the populated test suite
+    return suite
+
+
+def main():
+    import argparse
+
+    # test cases that are production ready
+    test_cases = (SensorsTestCase, ParseTestCase, UtilitiesTestCase,
+                  ListsAndDictsTestCase, StationTestCase, Gw1000TestCase)
+
+    usage = """python -m user.tests.test_gw1000 --help
+           python -m user.tests.test_gw1000 --version
+           python -m user.tests.test_gw1000 [-v|--verbose=VERBOSITY] [--ip-address=IP_ADDRESS] [--port=PORT]
+
+        Arguments:
+
+           VERBOSITY: Path and file name of the WeeWX configuration file to be used.
+                        Default is weewx.conf.
+           IP_ADDRESS: IP address to use to contact GW1000. If omitted discovery is used.
+           PORT: Port to use to contact GW1000. If omitted discovery is used."""
+    description = 'Test the GW1000 driver code.'
+    epilog = """You must ensure the WeeWX modules are in your PYTHONPATH. For example:
+
+    PYTHONPATH=/home/weewx/bin python -m user.tests.test_gw1000 --help
+    """
+
+    parser = argparse.ArgumentParser(usage=usage,
+                                     description=description,
+                                     epilog=epilog,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--version', dest='version', action='store_true',
+                        help='display GW1000 driver test suite version number')
+    parser.add_argument('--verbose', dest='verbosity', type=int, metavar="VERBOSITY",
+                        default=2,
+                        help='How much status to display, 0-2')
+    parser.add_argument('--ip-address', dest='ip_address', metavar="IP_ADDRESS",
+                        help='GW1000 IP address to use')
+    parser.add_argument('--port', dest='port', type=int, metavar="PORT",
+                        help='GW1000 port to use')
+    # parse the arguments
+    args = parser.parse_args()
+
+    # display version number
+    if args.version:
+        print("%s test suite version: %s" % (TEST_SUITE_NAME, TEST_SUITE_VERSION))
+        print("args=%s" % (args,))
+        exit(0)
+    # run the tests
+    # first set the IP address and port to use in Gw1000TestCase
+    Gw1000TestCase.ip_address = args.ip_address
+    Gw1000TestCase.port = args.port
+    # get a test runner with appropriate verbosity
+    runner = unittest.TextTestRunner(verbosity=args.verbosity)
+    # create a test suite and run the included tests
+    runner.run(suite(test_cases))
+
+
 if __name__ == '__main__':
-    unittest.main()
+    main()
