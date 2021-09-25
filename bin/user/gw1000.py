@@ -531,13 +531,13 @@ try:
     log = logging.getLogger(__name__)
 
     def logdbg(msg):
-        log.debug(msg)
+        log.debug("%s-truncated by %s" % (msg[:60], __name__))
 
     def loginf(msg):
-        log.info(msg)
+        log.info("%s-truncated by %s" % (msg[:60], __name__))
 
     def logerr(msg):
-        log.error(msg)
+        log.error("%s-truncated by %s" % (msg[:60], __name__))
 
     # log_traceback() generates the same output but the signature and code is
     # different between v3 and v4. We only need log_traceback at the log.error
@@ -557,7 +557,7 @@ except ImportError:
     from weeutil.weeutil import log_traceback
 
     def logmsg(level, msg):
-        syslog.syslog(level, 'gw1000: %s' % msg)
+        syslog.syslog(level, "gw1000: %s-truncated by %s" % (msg[:60], __name__))
 
     def logdbg(msg):
         logmsg(syslog.LOG_DEBUG, msg)
