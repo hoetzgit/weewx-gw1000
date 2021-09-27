@@ -3,17 +3,18 @@
 """
 gw1000.py
 
-A WeeWX driver for the Ecowitt GW1000 Wi-Fi Gateway API.
+A WeeWX driver for the Ecowitt GW1000/GW1100 Wi-Fi Gateway API.
 
-The WeeWX GW1000 driver utilise the GW1000 API thus using a pull methodology for
-obtaining data from the GW1000 rather than the push methodology used by current
-drivers. This has the advantage of giving the user more control over when the
-data is obtained from the GW1000 plus also giving access to a greater range of
-metrics.
+The WeeWX GW1000/GW1100 driver (known historically as the 'WeeWX GW1000
+driver') utilises the GW1000/GW1100 API thus using a pull methodology for
+obtaining data from the GW1000/GW1100 rather than the push methodology used by
+current drivers. This has the advantage of giving the user more control over
+when the data is obtained from the GW1000/GW1100 plus also giving access to a
+greater range of metrics.
 
-The GW1000 driver can be operated as a traditional WeeWX driver where it is the
-source of loop data or it can be operated as a WeeWX service where it is used
-to augment loop data produced by another driver.
+The GW1000/GW1100 driver can be operated as a traditional WeeWX driver where it
+is the source of loop data or it can be operated as a WeeWX service where it is
+used to augment loop data produced by another driver.
 
 Copyright (C) 2020-2021 Gary Roderick                   gjroderick<at>gmail.com
 
@@ -29,10 +30,15 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.4.0.a1                                    Date: xx June 2021
+Version: 0.4.0                                      Date: 27 September 2021
 
 Revision History
-    xx June 2021            v0.4.0
+    27 September 2021       v0.4.0
+        -   the device model (GW1000/GW1100) is now identified via the API so
+            many references to 'GW1000' in console and log output should now be
+            replaced with the correct device model
+        -   when used as a driver the driver hardware_name property now returns
+            the device model instead of the driver name (GW1000)
         -   reworked processing of queued data by class Gw1000Service() to fix
             a bug resulting is intermittent missing GW1000 data
         -   implemented debug_wind reporting
@@ -42,16 +48,26 @@ Revision History
             level == 0, can be disabled by setting option
             show_all_batt = True under [GW1000] in weewx.conf or by use of
             the --show-all-batt command line option
-        -   --live-data now displayed using the default units for each WeeWX
-            unit system ie; US customary (--units=us), Metric (--units=metric)
-            and MetricWx (--units=metricwx)
+        -   implemented the --units command line option to control the units
+            used when displaying --live-data output, available options are US
+            customary (--units=us), Metric (--units=metric) and MetricWx
+            (--units=metricwx)
         -   --live-data now formatted and labelled using WeeWX default formats
             and labels
         -   fixed some incorrect command line option descriptions
         -   simplified binary battery state calculation
-        -   renamed WH35 (as per API documentation) to WN35 (actual hardware
-            nomenclature)
         -   socket objects are now managed via the 'with' context manager
+        -   fixed bug when operated with GW1100 using firmware v2.0.4
+        -   implemented limited debug_sensors reporting
+        -   implemented a separate broadcast_timeout config option to allow an
+            increased socket timeout when broadcasting for GW1000/GW1100
+            devices, default value is five seconds
+        -   a device is now considered unique if it has a unique MAC address
+            (was formerly unique if IP address and port combination were
+            unique)
+        -   minor reformatting of --discover console output
+        -   WH24 battery and signal state fields are now included in the
+            default field map
     28 March 2021           v0.3.1
         -   fixed error when broadcast port or socket timeout is specified in
             weewx.conf
@@ -99,7 +115,8 @@ Revision History
         - initial release
 
 
-The following deviations from the GW1000/GW1100 API are used in this driver:
+The following deviations from the GW1000/GW1100 API documentation v1.6.0 are
+used in this driver:
 
 1.  CMD_READ_SENSOR_ID documentation indicates that the WH41 battery state
 values are an integer from 0 to 5. There is no specific information in the API
@@ -485,8 +502,9 @@ under [StdArchive] ensure the record_generation setting is set to software:
     Note: Depending on your WeeWX installation wee_config may need to be
           prefixed with the path to wee_config.
 
-7.  You may chose to run WeeWX directly (refer https://weewx.com/docs/usersguide.htm#Running_directly)
-to observe the loop packets and archive records being generated by WeeWX.
+7.  You may chose to run WeeWX directly (refer
+https://weewx.com/docs/usersguide.htm#Running_directly) to observe the loop
+packets and archive records being generated by WeeWX.
 
 8.  Once satisfied that the GW1000 driver is operating correctly you can start
 the WeeWX daemon:
@@ -551,7 +569,6 @@ the WeeWX daemon:
 """
 
 # Standing TODOs:
-# TODO. Check lightning count for correct gw1000 field name and default map
 # TODO. Review against latest
 # TODO. Confirm WH26/WH32 sensor ID
 # TODO. Confirm WH26/WH32 battery status
@@ -649,10 +666,10 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.4.0a1'
+DRIVER_VERSION = '0.4.0'
 
 # various defaults used throughout
-# default port used by GW1000
+# default port used by GW1000/GW1100
 default_port = 45000
 # default network broadcast address - the address that network broadcasts are
 # sent to
@@ -661,14 +678,16 @@ default_broadcast_address = '255.255.255.255'
 default_broadcast_port = 46000
 # default socket timeout
 default_socket_timeout = 2
+# default broadcast timeout
+default_broadcast_timeout = 5
 # default retry/wait time
 default_retry_wait = 10
 # default max tries when polling the API
 default_max_tries = 3
-# When run as a service the default age in seconds after which GW1000 API data
-# is considered stale and will not be used to augment loop packets
+# When run as a service the default age in seconds after which GW1000/GW1100
+# API data is considered stale and will not be used to augment loop packets
 default_max_age = 60
-# default GW1000 poll interval
+# default device poll interval
 default_poll_interval = 20
 # default period between lost contact log entries during an extended period of
 # lost contact when run as a Service
@@ -691,7 +710,7 @@ class InvalidChecksum(Exception):
 
 
 class GW1000IOError(Exception):
-    """Exception raised when an input/output error with the GW1000 is
+    """Exception raised when an input/output error with the GW1000/GW1100 is
     encountered."""
 
 
@@ -704,19 +723,19 @@ class UnknownCommand(Exception):
 # ============================================================================
 
 class Gw1000(object):
-    """Base class for interacting with a GW1000.
+    """Base class for interacting with a GW1000/GW1100.
 
     There are a number of common properties and methods (eg IP address,
-    field map, rain calculation etc) when dealing with a GW1000 either as a
-    driver or service. This class captures those common features.
+    field map, rain calculation etc) when dealing with a GW1000/GW1100 either
+    as a driver or service. This class captures those common features.
     """
 
-    # Default field map to map GW1000 sensor data to WeeWX fields. WeeWX field
-    # names are used where there is a direct correlation to the WeeWX
+    # Default field map to map GW1000/GW1100 sensor data to WeeWX fields. WeeWX
+    # field names are used where there is a direct correlation to the WeeWX
     # wview_extended schema or weewx.units.obs_group_dict otherwise fields are
     # passed passed through as is.
     # Format is:
-    #   WeeWX field name: GW1000 field name
+    #   WeeWX field name: GW1000/GW1100 field name
     default_field_map = {
         'inTemp': 'intemp',
         'outTemp': 'outtemp',
@@ -817,14 +836,14 @@ class Gw1000(object):
         'leak4': 'leak4',
         'lightning_distance': 'lightningdist',
         'lightning_last_det_time': 'lightningdettime',
-        # 'lightningcount' is the GW1000 lightning count field obtained via the
-        # API. It is safe for the user to change this mapping as
+        # 'lightningcount' is the GW1000/GW1100 lightning count field obtained
+        # via the API. It is safe for the user to change this mapping as
         # 'lightning_strike_count' is derived before the user mapping is
         # applied.
         'lightningcount': 'lightningcount',
         # 'lightning_strike_count' is the WeeWX extended schema per period
-        # lightning count field that is derived from the GW1000 cumulative
-        # 'lightningcount' field
+        # lightning count field that is derived from the GW1000/GW1100
+        # cumulative 'lightningcount' field
         'lightning_strike_count': 'lightning_strike_count'
     }
     # Rain related fields default field map, merged into default_field_map to
@@ -992,14 +1011,14 @@ class Gw1000(object):
             field_map.update(Gw1000.battery_field_map)
             # now add in the sensor signal field map
             field_map.update(Gw1000.sensor_signal_field_map)
-        # If a user wishes to map a GW1000 field differently to that in the
-        # default map they can include an entry in field_map_extensions, but if
-        # we just update the field map dict with the field map extensions that
-        # leaves two entries for that GW1000 field in the field map; the
-        # original field map entry as well as the entry from the extended map.
-        # So if we have field_map_extensions we need to first go through the
-        # field map and delete any entries that map GW1000 fields that are
-        # included in the field_map_extensions.
+        # If a user wishes to map a GW1000/GW1100 field differently to that in
+        # the default map they can include an entry in field_map_extensions,
+        # but if we just update the field map dict with the field map
+        # extensions that leaves two entries for that GW1000 field in the field
+        # map; the original field map entry as well as the entry from the
+        # extended map.  So if we have field_map_extensions we need to first go
+        # through the field map and delete any entries that map GW1000/GW1100
+        # fields that are included in the field_map_extensions.
         # we only need process the field_map_extensions if we have any
         if len(extensions) > 0:
             # first make a copy of the field map because we will be iterating
@@ -1007,10 +1026,11 @@ class Gw1000(object):
             field_map_copy = dict(field_map)
             # iterate over each key, value pair in the copy of the field map
             for k, v in six.iteritems(field_map_copy):
-                # if the 'value' (ie the GW1000 field) is in the field map
-                # extensions we will be mapping that GW1000 field elsewhere so
-                # pop that field map entry out of the field map so we don't end
-                # up with multiple mappings for a GW1000 field
+                # if the 'value' (ie the GW1000/GW1100 field) is in the field
+                # map extensions we will be mapping that GW1000/GW1100 field
+                # elsewhere so pop that field map entry out of the field map so
+                # we don't end up with multiple mappings for a GW1000/GW1100
+                # field
                 if v in extensions.values():
                     # pop the field map entry
                     _dummy = field_map.pop(k)
@@ -1025,17 +1045,19 @@ class Gw1000(object):
                                                      default_broadcast_port))
         self.socket_timeout = weeutil.weeutil.to_int(gw1000_config.get('socket_timeout',
                                                      default_socket_timeout))
-        # obtain the GW1000 ip address
+        self.broadcast_timeout = weeutil.weeutil.to_int(gw1000_config.get('broadcast_timeout',
+                                                        default_broadcast_timeout))
+        # obtain the GW1000/GW1100 IP address
         _ip_address = gw1000_config.get('ip_address')
         # if the user has specified some variation of 'auto' then we are to
-        # automatically detect the GW1000 IP address, to do that we set the
-        # ip_address property to None
+        # automatically detect the GW1000/GW1100 IP address, to do that we set
+        # the ip_address property to None
         if _ip_address is not None and _ip_address.lower() == 'auto':
-            # we need to autodetect ip address so set to None
+            # we need to autodetect IP address so set to None
             _ip_address = None
-        # set the ip address property
+        # set the IP address property
         self.ip_address = _ip_address
-        # obtain the GW1000 port from the config dict
+        # obtain the GW1000/GW1100 port from the config dict
         # for port number we have a default value we can use, so if port is not
         # specified use the default
         _port = gw1000_config.get('port', default_port)
@@ -1053,7 +1075,8 @@ class Gw1000(object):
             # invalid. Either way we need to set port to None to force auto
             # detection. If there was an invalid port specified then log it.
             if _port.lower() != 'auto':
-                loginf("Invalid GW1000 port '%s' specified, port will be auto detected" % (_port,))
+                loginf("Invalid GW1000/GW1100 port '%s' specified, "
+                       "port will be auto detected" % (_port,))
             _port = None
         # set the port property
         self.port = _port
@@ -1068,16 +1091,16 @@ class Gw1000(object):
         self.poll_interval = int(gw1000_config.get('poll_interval',
                                                    default_poll_interval))
         # Is a WH32 in use. WH32 TH sensor can override/provide outdoor TH data
-        # to the GW1000. In terms of TH data the process is transparent and we
-        # do not need to know if a WH32 or other sensor is providing outdoor TH
-        # data but in terms of battery state we need to know so the battery
-        # state data can be reported against the correct sensor.
+        # to the GW1000/GW1100. In terms of TH data the process is transparent
+        # and we do not need to know if a WH32 or other sensor is providing
+        # outdoor TH data but in terms of battery state we need to know so the
+        # battery  state data can be reported against the correct sensor.
         use_th32 = weeutil.weeutil.tobool(gw1000_config.get('th32', False))
         # do we show all battery state data including nonsense data or do we
         # filter those sensors with signal state == 0
         self.show_battery = weeutil.weeutil.tobool(gw1000_config.get('show_all_batt',
                                                                      False))
-        # get any GW1000 specific debug settings
+        # get any specific debug settings
         # rain
         self.debug_rain = weeutil.weeutil.tobool(gw1000_config.get('debug_rain',
                                                                    False))
@@ -1087,26 +1110,32 @@ class Gw1000(object):
         # loop data
         self.debug_loop = weeutil.weeutil.tobool(gw1000_config.get('debug_loop',
                                                                    False))
-        # create an Gw1000Collector object to interact with the GW1000 API
+        # sensors
+        self.debug_sensors = weeutil.weeutil.tobool(gw1000_config.get('debug_sensors',
+                                                                      False))
+        # create an Gw1000Collector object to interact with the GW1000/GW1100
+        # API
         self.collector = Gw1000Collector(ip_address=self.ip_address,
                                          port=self.port,
                                          broadcast_address=self.broadcast_address,
                                          broadcast_port=self.broadcast_port,
                                          socket_timeout=self.socket_timeout,
+                                         broadcast_timeout=self.broadcast_timeout,
                                          poll_interval=self.poll_interval,
                                          max_tries=self.max_tries,
                                          retry_wait=self.retry_wait,
                                          use_th32=use_th32,
                                          show_battery=self.show_battery,
                                          debug_rain=self.debug_rain,
-                                         debug_wind=self.debug_wind)
+                                         debug_wind=self.debug_wind,
+                                         debug_sensors=self.debug_sensors)
         # initialise last lightning count and last rain properties
         self.last_lightning = None
         self.last_rain = None
         self.rain_mapping_confirmed = False
         self.rain_total_field = None
         # Finally, log any config that is not being pushed any further down.
-        # GW1000 specific debug but only if set ie. True
+        # Log specific debug but only if set ie. True
         debug_list = []
         if self.debug_rain:
             debug_list.append("debug_rain is %s" % (self.debug_rain,))
@@ -1122,16 +1151,22 @@ class Gw1000(object):
         # keys in a manually produced formatted dict representation.
         loginf('field map is %s' % natural_sort_dict(self.field_map))
 
+    @property
+    def model(self):
+        """What model device am I using"""
+
+        return self.collector.station.model
+
     def map_data(self, data):
-        """Map parsed GW1000 data to a WeeWX loop packet.
+        """Map parsed GW1000/GW1100 data to a WeeWX loop packet.
 
-        Maps parsed GW1000 data to WeeWX loop packet fields using the field map.
-        Result includes usUnits field set to METRICWX.
+        Maps parsed GW1000/GW1100 data to WeeWX loop packet fields using the
+        field map. Result includes usUnits field set to METRICWX.
 
-        data: Dict of parsed GW1000 API data
+        data: Dict of parsed GW1000/GW1100 API data
         """
 
-        # parsed GW1000 API data uses the METRICWX unit system
+        # parsed GW1000/GW1100 API data uses the METRICWX unit system
         _result = {'usUnits': weewx.METRICWX}
         # iterate over each of the key, value pairs in the field map
         for weewx_field, data_field in six.iteritems(self.field_map):
@@ -1146,26 +1181,26 @@ class Gw1000(object):
         """Log rain related data from the collector.
 
         General routine to obtain and log rain related data from a packet. The
-        packet could be unmapped GW1000 data using 'GW1000' field names or it
-        may be mapped data or a WeeWX loop packet that uses 'WeeWX' field names
-        so we iterate over the keys ('WeeWX' field names) and values ('GW1000'
-        field names) of the rain field map.
+        packet could be unmapped GW1000/GW1100 data using 'GW1000/GW1100' field
+        names or it may be mapped data or a WeeWX loop packet that uses 'WeeWX'
+        field names so we iterate over the keys ('WeeWX' field names) and
+        values ('GW1000/GW1100' field names) of the rain field map.
         """
 
         msg_list = []
         # iterate over our rain_field_map keys (the 'WeeWX' fields) and values
-        # (the 'GW1000' fields) we are interested in
-        for weewx_field, gw1000_field in six.iteritems(Gw1000.rain_field_map):
+        # (the 'GW1000/GW1100' fields) we are interested in
+        for weewx_field, gw_field in six.iteritems(Gw1000.rain_field_map):
             # do we have a 'WeeWX' field of interest
             if weewx_field in data:
                 # we do so add some formatted output to our list
                 msg_list.append("%s=%s" % (weewx_field,
                                            data[weewx_field]))
-            # do we have a 'GW1000' field of interest
-            if gw1000_field in data and weewx_field != gw1000_field:
+            # do we have a 'GW1000/GW1100' field of interest
+            if gw_field in data and weewx_field != gw_field:
                 # we do so add some formatted output to our list
-                msg_list.append("%s=%s" % (gw1000_field,
-                                           data[gw1000_field]))
+                msg_list.append("%s=%s" % (gw_field,
+                                           data[gw_field]))
         # pre-format the log line label
         label = "%s: " % preamble if preamble is not None else ""
         # if we have some entries log them otherwise provide suitable text
@@ -1179,26 +1214,26 @@ class Gw1000(object):
         """Log wind related data from the collector.
 
         General routine to obtain and log wind related data from a packet. The
-        packet could be unmapped GW1000 data using 'GW1000' field names or it
-        may be mapped data or a WeeWX loop packet that uses 'WeeWX' field names
-        so we iterate over the keys ('WeeWX' field names) and values ('GW1000'
-        field names) of the rain field map.
+        packet could be unmapped GW1000/GW1100 data using 'GW1000/GW1100' field
+        names or it may be mapped data or a WeeWX loop packet that uses 'WeeWX'
+        field names so we iterate over the keys ('WeeWX' field names) and
+        values ('GW1000/GW1100' field names) of the rain field map.
         """
 
         msg_list = []
         # iterate over our wind_field_map keys (the 'WeeWX' fields) and values
-        # (the 'GW1000' fields) we are interested in
-        for weewx_field, gw1000_field in six.iteritems(Gw1000.wind_field_map):
+        # (the 'GW1000/GW1100' fields) we are interested in
+        for weewx_field, gw_field in six.iteritems(Gw1000.wind_field_map):
             # do we have a 'WeeWX' field of interest
             if weewx_field in data:
                 # we do so add some formatted output to our list
                 msg_list.append("%s=%s" % (weewx_field,
                                            data[weewx_field]))
-            # do we have a 'GW1000' field of interest
-            if gw1000_field in data:
+            # do we have a 'GW1000/GW1100' field of interest
+            if gw_field in data:
                 # we do so add some formatted output to our list
-                msg_list.append("%s=%s" % (gw1000_field,
-                                           data[gw1000_field]))
+                msg_list.append("%s=%s" % (gw_field,
+                                           data[gw_field]))
         # pre-format the log line label
         label = "%s: " % preamble if preamble is not None else ""
         # if we have some entries log them otherwise provide suitable text
@@ -1210,12 +1245,12 @@ class Gw1000(object):
     def get_cumulative_rain_field(self, data):
         """Determine the cumulative rain field used to derive field 'rain'.
 
-        Ecowitt rain gauges/GW1000 emit various rain totals but WeeWX needs a
-        per period value for field rain. Try the 'big' (4 byte) counters
-        starting at the longest period and working our way down. This should
-        only need be done once.
+        Ecowitt rain gauges/GW1000/GW1100 emit various rain totals but WeeWX
+        needs a per period value for field rain. Try the 'big' (4 byte)
+        counters starting at the longest period and working our way down. This
+        should only need be done once.
 
-        data: dic of parsed GW1000 API data
+        data: dic of parsed GW1000/GW1100 API data
         """
 
         # if raintotals is present used that as our first choice
@@ -1247,7 +1282,7 @@ class Gw1000(object):
         field between successive periods. 'rain' is only calculated if the
         field to be used has been selected and the designated field exists.
 
-        data: dict of parsed GW1000 API data
+        data: dict of parsed GW1000/GW1100 API data
         """
 
         # have we decided on a field to use and is the field present
@@ -1272,7 +1307,7 @@ class Gw1000(object):
         'lightningcount' between successive periods. 'lightning_strike_count'
         is only calculated if 'lightningcount' exists.
 
-        data: dict of parsed GW1000 API data
+        data: dict of parsed GW1000/GW1100 API data
         """
 
         # is the lightningcount field present
@@ -1356,28 +1391,28 @@ class Gw1000(object):
 # ============================================================================
 
 class Gw1000Service(weewx.engine.StdService, Gw1000):
-    """GW1000 service class.
+    """GW1000/GW1100 service class.
 
     A WeeWX service to augment loop packets with observational data obtained
-    from the GW1000 API. Using the Gw1000Service is useful when data is
+    from the GW1000/GW1100 API. Using the Gw1000Service is useful when data is
     required from more than one source, for example, WeeWX is using another
     driver and the Gw1000Driver cannot be used.
 
-    Data is obtained from the GW1000 API. The data is parsed and mapped to
-    WeeWX fields and if the GW1000 data is not stale the loop packets is
-    augmented with the GW1000 mapped data.
+    Data is obtained from the GW1000/GW1100 API. The data is parsed and mapped
+    to WeeWX fields and if the GW1000/GW1100 data is not stale the loop packets
+    is augmented with the GW1000/GW1100 mapped data.
 
-    Class Gw1000Collector collects and parses data from the GW1000 API. The
-    Gw1000Collector runs in a separate thread so as to not block the main WeeWX
-    processing loop. The Gw1000Collector is turn uses child classes Station and
-    Parser to interact directly with the GW1000 API and parse the API responses
-    respectively.
+    Class Gw1000Collector collects and parses data from the GW1000/GW1100 API.
+    The Gw1000Collector runs in a separate thread so as to not block the main
+    WeeWX processing loop. The Gw1000Collector is turn uses child classes
+    Station and Parser to interact directly with the GW1000/GW1100 API and
+    parse the API responses respectively.
     """
 
     def __init__(self, engine, config_dict):
         """Initialise a Gw1000Service object."""
 
-        # extract the GW1000 service config dictionary
+        # extract the GW1000/GW1100 service config dictionary
         gw1000_config_dict = config_dict.get('GW1000', {})
         # initialize my superclasses
         super(Gw1000Service, self).__init__(engine, config_dict)
@@ -1394,27 +1429,32 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         self.log_failures = True
         # reset the lost contact timestamp
         self.lost_con_ts = None
-        # create a placeholder for our most recent, non-stale queued GW1000
-        # sensor data packet
+        # create a placeholder for our most recent, non-stale queued
+        # GW1000/GW1100 sensor data packet
         self.cached_sensor_data = None
-
         # log our version number
         loginf('version is %s' % DRIVER_VERSION)
         # log the relevant settings/parameters we are using
         if self.ip_address is None and self.port is None:
-            loginf("GW1000 IP address and port not specified, attempting to discover GW1000...")
+            loginf("%s IP address and port not specified, "
+                   "attempting to discover %s..." % (self.collector.station.model,
+                                                     self.collector.station.model))
         elif self.ip_address is None:
-            loginf("GW1000 IP address not specified, attempting to discover GW1000...")
+            loginf("%s IP address not specified, attempting to discover %s..." % (self.collector.station.model,
+                                                                                  self.collector.station.model))
         elif self.port is None:
-            loginf("GW1000 port not specified, attempting to discover GW1000...")
-        loginf("GW1000 address is %s:%d" % (self.collector.station.ip_address.decode(),
-                                            self.collector.station.port))
+            loginf("%s port not specified, attempting to discover %s..." % (self.collector.station.model,
+                                                                            self.collector.station.model))
+        loginf("%s address is %s:%d" % (self.collector.station.model,
+                                        self.collector.station.ip_address.decode(),
+                                        self.collector.station.port))
         loginf("poll interval is %d seconds" % self.poll_interval)
         logdbg('max tries is %d, retry wait time is %d seconds' % (self.max_tries,
                                                                    self.retry_wait))
-        logdbg('broadcast address %s:%d, socket timeout is %d seconds' % (self.broadcast_address,
-                                                                          self.broadcast_port,
-                                                                          self.socket_timeout))
+        logdbg('broadcast address %s:%d, broadcast timeout is %d seconds' % (self.broadcast_address,
+                                                                             self.broadcast_port,
+                                                                             self.broadcast_timeout))
+        logdbg('socket timeout is %d seconds' % self.socket_timeout)
         loginf("max age of API data to be used is %d seconds" % self.max_age)
         loginf("lost contact will be logged every %d seconds" % self.lost_contact_log_period)
         # start the Gw1000Collector in its own thread
@@ -1423,17 +1463,17 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         self.bind(weewx.NEW_LOOP_PACKET, self.new_loop_packet)
 
     def new_loop_packet(self, event):
-        """Augment a loop packet with GW1000 data.
+        """Augment a loop packet with GW1000/GW1100 data.
 
-        When a new loop packet arrives process the queue looking for any GW1000
-        sensor data packets. If there are sensor data packets keep the most
-        recent, non-stale packet and use it to augment the loop packet. If there
-        are no sensor data packets, or they are all stale, then the loop packet
-        is not augmented.
+        When a new loop packet arrives process the queue looking for any
+        GW1000/GW1100 sensor data packets. If there are sensor data packets
+        keep the most recent, non-stale packet and use it to augment the loop
+        packet. If there are no sensor data packets, or they are all stale,
+        then the loop packet is not augmented.
 
         The queue may also contain other control data, eg exception reporting
-        from the GW1000 driver thread. This control data needs to be processed
-        as well.
+        from the GW1000/GW1100 driver thread. This control data needs to be
+        processed as well.
         """
 
         # log the loop packet received if necessary, there are several debug
@@ -1496,11 +1536,11 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                         if self.debug_rain:
                             # debug_rain is set so log the 'rain' field in the
                             # mapped data, if it does not exist say so
-                            self.log_rain_data(queue_data, "Received GW1000 data")
+                            self.log_rain_data(queue_data, "Received %s data" % self.collector.station.model)
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # received data, if they do not exist say so
-                            self.log_wind_data(queue_data, "Received GW1000 data")
+                            self.log_wind_data(queue_data, "Received %s data" % self.collector.station.model)
                     # now process the just received sensor data packet
                     self.process_queued_sensor_data(queue_data, event.packet['dateTime'])
 
@@ -1552,18 +1592,19 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
             mapped_data = self.map_data(self.cached_sensor_data)
             # log the mapped data if necessary
             if self.debug_loop:
-                loginf("Mapped GW1000 data: %s %s" % (timestamp_to_string(mapped_data['dateTime']),
-                                                      natural_sort_dict(mapped_data)))
+                loginf("Mapped %s data: %s %s" % (self.collector.station.model,
+                                                  timestamp_to_string(mapped_data['dateTime']),
+                                                  natural_sort_dict(mapped_data)))
             else:
                 # perhaps we have individual debugs such as rain or wind
                 if self.debug_rain:
                     # debug_rain is set so log the 'rain' field in the
                     # mapped data, if it does not exist say so
-                    self.log_rain_data(mapped_data, "Mapped GW1000 data")
+                    self.log_rain_data(mapped_data, "Mapped %s data" % self.collector.station.model)
                 if self.debug_wind:
                     # debug_wind is set so log the 'wind' fields in the
                     # mapped data, if they do not exist say so
-                    self.log_wind_data(mapped_data, "Mapped GW1000 data")
+                    self.log_wind_data(mapped_data, "Mapped %s data" % self.collector.station.model)
             # and finally augment the loop packet with the mapped data
             self.augment_packet(event.packet, mapped_data)
             # log the augmented packet if necessary, there are several debug
@@ -1625,7 +1666,7 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
             # set our failure logging appropriately
             if self.lost_con_ts is None:
                 # we have previously been in contact with the
-                # GW1000 so set our lost contact timestamp
+                # GW1000/GW1100 so set our lost contact timestamp
                 self.lost_con_ts = time.time()
                 # any failure logging for this failure will already
                 # have occurred in our GW1000Collector object and
@@ -1667,8 +1708,9 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         converted_data = converter.convertDict(data)
         # if required log the converted data
         if self.debug_loop:
-            loginf("Converted GW1000 data: %s %s" % (timestamp_to_string(converted_data['dateTime']),
-                                                     natural_sort_dict(converted_data)))
+            loginf("Converted %s data: %s %s" % (self.collector.station.model,
+                                                 timestamp_to_string(converted_data['dateTime']),
+                                                 natural_sort_dict(converted_data)))
         # now we can freely augment the packet with any of our mapped obs
         for field, data in six.iteritems(converted_data):
             # Any existing packet fields, whether they contain data or are
@@ -1730,7 +1772,7 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
     # define our config as a multiline string so we can preserve comments
     accum_config = """
     [Accumulator]
-        # Start GW1000 driver extractors
+        # Start GW1000/GW1100 driver extractors
         [[daymaxwind]]
             extractor = last
         [[lightning_distance]]
@@ -1959,19 +2001,19 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[ws80_sig]]
             extractor = last
-        # End GW1000 driver extractors
+        # End GW1000/GW1100 driver extractors
     """
 
     @property
     def default_stanza(self):
         return """
     [GW1000]
-        # This section is for the GW1000 API driver.
+        # This section is for the GW1000/GW1100 API driver.
 
         # The driver to use:
         driver = user.gw1000
 
-        # How often to poll the GW1000 API:
+        # How often to poll the GW1000/GW1100 API:
         poll_interval = %d
     """ % (default_poll_interval,)
 
@@ -1998,18 +2040,18 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
 
         # obtain IP address
         print()
-        print("Specify GW1000 IP address, for example: 192.168.1.100")
-        print("Set to 'auto' to autodiscover GW1000 IP address (not")
-        print("recommended for systems with more than one GW1000)")
+        print("Specify GW1000/GW1100 IP address, for example: 192.168.1.100")
+        print("Set to 'auto' to autodiscover GW1000/GW1100 IP address (not")
+        print("recommended for systems with more than one GW1000/GW1100)")
         ip_address = self._prompt('IP address',
                                   dflt=self.existing_options.get('ip_address'))
         # obtain port number
         print()
-        print("Specify GW1000 network port, for example: 45000")
+        print("Specify GW1000/GW1100 network port, for example: 45000")
         port = self._prompt('port', dflt=self.existing_options.get('port', default_port))
         # obtain poll interval
         print()
-        print("Specify how often to poll the GW1000 API in seconds")
+        print("Specify how often to poll the GW1000/GW1100 API in seconds")
         poll_interval = self._prompt('Poll interval',
                                      dflt=self.existing_options.get('poll_interval',
                                                                     default_poll_interval))
@@ -2025,13 +2067,13 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         # set loop_on_init
         loop_on_init_config = """loop_on_init = %d"""
         dflt = config_dict.get('loop_on_init', '1')
-        label = """The GW1000 driver requires a network connection to the 
-GW1000. Consequently, the absence of a network connection 
+        label = """The GW1000/GW1100 driver requires a network connection to the 
+GW1000/GW1100. Consequently, the absence of a network connection 
 when WeeWX starts will cause WeeWX to exit and such a situation 
-can occur on system startup. The 'loop_on_init' setting 
-can be used to mitigate such problems by having WeeWX 
-retry startup indefinitely. Set to '0' to attempt startup 
-once only or '1' to attempt startup indefinitely."""
+can occur on system startup. The 'loop_on_init' setting can be
+used to mitigate such problems by having WeeWX retry startup 
+indefinitely. Set to '0' to attempt startup once only or '1' to 
+attempt startup indefinitely."""
         print()
         loop_on_init = int(weecfg.prompt_with_options(label, dflt, ['0', '1']))
         loop_on_init_dict = configobj.ConfigObj(StringIO(loop_on_init_config % (loop_on_init, )))
@@ -2065,24 +2107,24 @@ once only or '1' to attempt startup indefinitely."""
 # ============================================================================
 
 class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
-    """GW1000 driver class.
+    """GW1000/GW1100 driver class.
 
     A WeeWX driver to emit loop packets based on observational data obtained
-    from the GW1000 API. The Gw1000Driver should be used when there is no other
-    data source or other sources data can be ingested via one or more WeeWX
-    services.
+    from the GW1000/GW1100 API. The Gw1000Driver should be used when there is
+    no other data source or other sources data can be ingested via one or more
+    WeeWX services.
 
-    Data is obtained from the GW1000 API. The data is parsed and mapped to
-    WeeWX fields and emitted as a WeeWX loop packet.
+    Data is obtained from the GW1000/GW1100 API. The data is parsed and mapped
+    to WeeWX fields and emitted as a WeeWX loop packet.
 
-    Class Gw1000Collector collects and parses data from the GW1000 API. The
-    Gw1000Collector runs in a separate thread so as to not block the main WeeWX
-    processing loop. The Gw1000Collector is turn uses child classes Station and
-    Parser to interact directly with the GW1000 API and parse the API responses
-    respectively."""
+    Class Gw1000Collector collects and parses data from the GW1000/GW1100 API.
+    The Gw1000Collector runs in a separate thread so as to not block the main
+    WeeWX processing loop. The Gw1000Collector is turn uses child classes
+    Station and Parser to interact directly with the GW1000/GW1100 API and
+    parse the API responses respectively."""
 
     def __init__(self, **stn_dict):
-        """Initialise a GW1000 driver object."""
+        """Initialise a GW1000/GW1100 driver object."""
 
         # now initialize my superclasses
         super(Gw1000Driver, self).__init__(**stn_dict)
@@ -2091,19 +2133,25 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
         loginf('driver version is %s' % DRIVER_VERSION)
         # log the relevant settings/parameters we are using
         if self.ip_address is None and self.port is None:
-            loginf("GW1000 IP address and port not specified, attempting to discover GW1000...")
+            loginf("%s IP address and port not specified, "
+                   "attempting to discover %s..." % (self.collector.station.model,
+                                                     self.collector.station.model))
         elif self.ip_address is None:
-            loginf("GW1000 IP address not specified, attempting to discover GW1000...")
+            loginf("%s IP address not specified, attempting to discover %s..." % (self.collector.station.model,
+                                                                                  self.collector.station.model))
         elif self.port is None:
-            loginf("GW1000 port not specified, attempting to discover GW1000...")
-        loginf("GW1000 address is %s:%d" % (self.collector.station.ip_address.decode(),
-                                            self.collector.station.port))
+            loginf("%s port not specified, attempting to discover %s..." % (self.collector.station.model,
+                                                                            self.collector.station.model))
+        loginf("%s address is %s:%d" % (self.collector.station.model,
+                                        self.collector.station.ip_address.decode(),
+                                        self.collector.station.port))
         loginf("poll interval is %d seconds" % self.poll_interval)
         logdbg('max tries is %d, retry wait time is %d seconds' % (self.max_tries,
                                                                    self.retry_wait))
-        logdbg('broadcast address is %s:%d, socket timeout is %d seconds' % (self.broadcast_address,
-                                                                             self.broadcast_port,
-                                                                             self.socket_timeout))
+        logdbg('broadcast address is %s:%d, broadcast timeout is %d seconds' % (self.broadcast_address,
+                                                                                self.broadcast_port,
+                                                                                self.broadcast_timeout))
+        logdbg('socket timeout is %d seconds' % self.socket_timeout)
         # start the Gw1000Collector in its own thread
         self.collector.startup()
 
@@ -2139,20 +2187,22 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                     # log the received data if necessary
                     if self.debug_loop:
                         if 'datetime' in queue_data:
-                            loginf("Received GW1000 data: %s %s" % (timestamp_to_string(queue_data['datetime']),
-                                                                    natural_sort_dict(queue_data)))
+                            loginf("Received %s data: %s %s" % (self.collector.station.model,
+                                                                timestamp_to_string(queue_data['datetime']),
+                                                                natural_sort_dict(queue_data)))
                         else:
-                            loginf("Received GW1000 data: %s" % (natural_sort_dict(queue_data),))
+                            loginf("Received %s data: %s" % (self.collector.station.model,
+                                                             natural_sort_dict(queue_data)))
                     else:
                         # perhaps we have individual debugs such as rain or wind
                         if self.debug_rain:
                             # debug_rain is set so log the 'rain' field in the
                             # received data, if it does not exist say so
-                            self.log_rain_data(queue_data, "Received GW1000 data")
+                            self.log_rain_data(queue_data, "Received %s data" % self.collector.station.model)
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # received data, if they do not exist say so
-                            self.log_wind_data(queue_data, "Received GW1000 data")
+                            self.log_wind_data(queue_data, "Received %s data" % self.collector.station.model)
                     # Now start to create a loop packet. A loop packet must
                     # have a timestamp, if we have one (key 'datetime') in the
                     # received data use it otherwise allocate one.
@@ -2174,20 +2224,22 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                     # log the mapped data if necessary
                     if self.debug_loop:
                         if 'datetime' in mapped_data:
-                            loginf("Mapped GW1000 data: %s %s" % (timestamp_to_string(mapped_data['datetime']),
-                                                                  natural_sort_dict(mapped_data)))
+                            loginf("Mapped %s data: %s %s" % (self.collector.station.model,
+                                                              timestamp_to_string(mapped_data['datetime']),
+                                                              natural_sort_dict(mapped_data)))
                         else:
-                            loginf("Mapped GW1000 data: %s" % (natural_sort_dict(mapped_data),))
+                            loginf("Mapped %s data: %s" % (self.collector.station.model,
+                                                           natural_sort_dict(mapped_data)))
                     else:
                         # perhaps we have individual debugs such as rain or wind
                         if self.debug_rain:
                             # debug_rain is set so log the 'rain' field in the
                             # mapped data, if it does not exist say so
-                            self.log_rain_data(mapped_data, "Mapped GW1000 data")
+                            self.log_rain_data(mapped_data, "Mapped %s data" % self.collector.station.model)
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # mapped data, if they do not exist say so
-                            self.log_wind_data(mapped_data, "Mapped GW1000 data")
+                            self.log_wind_data(mapped_data, "Mapped %s data" % self.collector.station.model)
                     # add the mapped data to the empty packet
                     packet.update(mapped_data)
                     # log the packet if necessary, there are several debug
@@ -2258,25 +2310,32 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
 
     @property
     def hardware_name(self):
-        """Return the hardware name."""
+        """Return the hardware name.
 
-        return DRIVER_NAME
+        Use the device model from our Collector's Station object, but if this
+        is None use the driver name.
+        """
+
+        if self.collector.station.model is not None:
+            return self.collector.station.model
+        else:
+            return DRIVER_NAME
 
     @property
     def mac_address(self):
-        """Return the GW1000 MAC address."""
+        """Return the GW1000/GW1100 MAC address."""
 
         return self.collector.mac_address
 
     @property
     def firmware_version(self):
-        """Return the GW1000 firmware version string."""
+        """Return the GW1000/GW1100 firmware version string."""
 
         return self.collector.firmware_version
 
     @property
     def sensor_id_data(self):
-        """Return the GW1000 sensor identification data.
+        """Return the GW1000/GW1100 sensor identification data.
 
         The sensor ID data is available via the data property of the Collector
         objects' sensors property.
@@ -2316,7 +2375,7 @@ class Collector(object):
 # ============================================================================
 
 class Gw1000Collector(Collector):
-    """Class to poll the GW1000 API then decode and return data to the driver."""
+    """Class to poll the GW1000/GW1100 API, decode and return data to the driver."""
 
     # map of sensor ids to short name, long name and battery byte decode
     # function
@@ -2389,11 +2448,11 @@ class Gw1000Collector(Collector):
                 ]
 
     def __init__(self, ip_address=None, port=None, broadcast_address=None,
-                 broadcast_port=None, socket_timeout=None,
+                 broadcast_port=None, socket_timeout=None, broadcast_timeout=None,
                  poll_interval=default_poll_interval,
                  max_tries=default_max_tries, retry_wait=default_retry_wait,
                  use_th32=False, lost_contact_log_period=0, show_battery=False,
-                 debug_rain=False, debug_wind=False):
+                 debug_rain=False, debug_wind=False, debug_sensors=False):
         """Initialise our class."""
 
         # initialize my base class:
@@ -2410,12 +2469,13 @@ class Gw1000Collector(Collector):
         # are we using a th32 sensor
         self.use_th32 = use_th32
         # get a station object to do the handle the interaction with the
-        # GW1000 API
+        # GW1000/GW1100 API
         self.station = Gw1000Collector.Station(ip_address=ip_address,
                                                port=port,
                                                broadcast_address=broadcast_address,
                                                broadcast_port=broadcast_port,
                                                socket_timeout=socket_timeout,
+                                               broadcast_timeout=broadcast_timeout,
                                                max_tries=max_tries,
                                                retry_wait=retry_wait,
                                                lost_contact_log_period=lost_contact_log_period)
@@ -2434,7 +2494,7 @@ class Gw1000Collector(Collector):
         # get a parser object to parse any data from the station
         self.parser = Gw1000Collector.Parser(is_wh24, debug_rain, debug_wind)
         # get a sensors object to handle sensor ID data
-        self.sensors_obj = Gw1000Collector.Sensors(show_battery=show_battery)
+        self.sensors_obj = Gw1000Collector.Sensors(show_battery=show_battery, debug_sensors=debug_sensors)
         # create a thread property
         self.thread = None
         # we start off not collecting data, it will be turned on later when we
@@ -2462,7 +2522,7 @@ class Gw1000Collector(Collector):
                     queue_data = self.get_live_sensor_data()
                 except GW1000IOError as e:
                     # a GW1000IOError occurred, most likely because the Station
-                    # object could not contact the GW1000
+                    # object could not contact the GW1000/GW1100
                     # first up log the event, but only if we are logging
                     # failures
                     if self.log_failures:
@@ -2482,29 +2542,31 @@ class Gw1000Collector(Collector):
     def get_live_sensor_data(self):
         """Get all current sensor data.
 
-        Obtain live sensor data from the GW1000 API then parse the API response
-        to create a timestamped data dict keyed by internal GW1000 field name.
-        Add current sensor battery state and signal level data to the data
-        dict. If no data was obtained from the API the value None is returned.
+        Obtain live sensor data from the GW1000/GW1100 API then parse the API
+        response to create a timestamped data dict keyed by internal
+        GW1000/GW1100 field name. Add current sensor battery state and signal
+        level data to the data dict. If no data was obtained from the API the
+        value None is returned.
         """
 
-        # obtain the raw data via the GW1000 API, we may get a GW1000IOError
-        # exception, if we do let it bubble up (the raw data is the data
-        # returned from the GW1000 inclusive of the fixed header, command,
-        # payload length, payload and checksum bytes)
+        # obtain the raw data via the GW1000/GW1100 API, we may get a
+        # GW1000IOError exception, if we do let it bubble up (the raw data is
+        # the data returned from the GW1000/GW1100 inclusive of the fixed
+        # header, command, payload length, payload and checksum bytes)
         raw_data = self.station.get_livedata()
         # if we made it here our raw data was validated by checksum
         # get a timestamp to use in case our data does not come with one
         _timestamp = int(time.time())
         # parse the raw data (the parsed data is a dict keyed by internal
-        # GW1000 field names and containing the decoded raw sensor data)
+        # GW1000/GW1100 field names and containing the decoded raw sensor data)
         parsed_data = self.parser.parse(raw_data, _timestamp)
         # log the parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Parsed data: %s" % parsed_data)
         # The parsed live data does not contain any sensor battery state or
         # signal level data. The battery state and signal level data for each
-        # sensor can be obtained from the GW1000 API via our Sensors object.
+        # sensor can be obtained from the GW1000/GW1100 API via our Sensors
+        # object.
         # first we need to update our Sensors object with current sensor ID data
         self.update_sensor_id_data()
         # now add any sensor battery state and signal level data to the parsed
@@ -2525,7 +2587,7 @@ class Gw1000Collector(Collector):
 
     @property
     def rain_data(self):
-        """Obtain GW1000 rain data."""
+        """Obtain GW1000/GW1100 rain data."""
 
         # obtain the rain data data via the API
         response = self.station.get_raindata()
@@ -2544,7 +2606,7 @@ class Gw1000Collector(Collector):
 
     @property
     def mulch_offset(self):
-        """Obtain GW1000 multi-channel temperature and humidity offset data."""
+        """Obtain GW1000/GW1100 multi-channel temperature and humidity offset data."""
 
         # obtain the mulch offset data via the API
         response = self.station.get_mulch_offset()
@@ -2576,7 +2638,7 @@ class Gw1000Collector(Collector):
 
     @property
     def pm25_offset(self):
-        """Obtain GW1000 PM2.5 offset data."""
+        """Obtain GW1000/GW1100 PM2.5 offset data."""
 
         # obtain the PM2.5 offset data via the API
         response = self.station.get_pm25_offset()
@@ -2600,7 +2662,7 @@ class Gw1000Collector(Collector):
 
     @property
     def co2_offset(self):
-        """Obtain GW1000 WH45 CO2, PM10 and PM2.5 offset data."""
+        """Obtain GW1000/GW1100 WH45 CO2, PM10 and PM2.5 offset data."""
 
         # obtain the WH45 offset data via the API
         response = self.station.get_co2_offset()
@@ -2621,7 +2683,7 @@ class Gw1000Collector(Collector):
 
     @property
     def calibration(self):
-        """Obtain GW1000 calibration data."""
+        """Obtain GW1000/GW1100 calibration data."""
 
         # obtain the calibration data via the API
         response = self.station.get_calibration_coefficient()
@@ -2662,7 +2724,7 @@ class Gw1000Collector(Collector):
 
     @property
     def soil_calibration(self):
-        """Obtain GW1000 soil moisture sensor calibration data.
+        """Obtain GW1000/GW1100 soil moisture sensor calibration data.
 
         """
 
@@ -2705,7 +2767,7 @@ class Gw1000Collector(Collector):
 
     @property
     def system_parameters(self):
-        """Obtain GW1000 system parameters."""
+        """Obtain GW1000/GW1100 system parameters."""
 
         # obtain the system parameters data via the API
         response = self.station.get_system_params()
@@ -2724,9 +2786,9 @@ class Gw1000Collector(Collector):
 
     @property
     def ecowitt_net(self):
-        """Obtain GW1000 Ecowitt.net service parameters.
+        """Obtain GW1000/GW1100 Ecowitt.net service parameters.
 
-        Obtain the GW1000 Ecowitt.net service settings.
+        Obtain the GW1000/GW1100 Ecowitt.net service settings.
 
         Returns a dictionary of settings.
         """
@@ -2740,15 +2802,15 @@ class Gw1000Collector(Collector):
         # initialise a dict to hold our final data
         data_dict = dict()
         data_dict['interval'] = six.indexbytes(data, 0)
-        # obtain the GW1000 MAC address
+        # obtain the GW1000/GW1100 MAC address
         data_dict['mac'] = self.mac_address
         return data_dict
 
     @property
     def wunderground(self):
-        """Obtain GW1000 Weather Underground service parameters.
+        """Obtain GW1000/GW1100 Weather Underground service parameters.
 
-        Obtain the GW1000 Weather Underground service settings.
+        Obtain the GW1000/GW1100 Weather Underground service settings.
 
         Returns a dictionary of settings with string data in unicode format.
         """
@@ -2771,9 +2833,9 @@ class Gw1000Collector(Collector):
 
     @property
     def weathercloud(self):
-        """Obtain GW1000 Weathercloud service parameters.
+        """Obtain GW1000/GW1100 Weathercloud service parameters.
 
-        Obtain the GW1000 Weathercloud service settings.
+        Obtain the GW1000/GW1100 Weathercloud service settings.
 
         Returns a dictionary of settings with string data in unicode format.
         """
@@ -2795,9 +2857,9 @@ class Gw1000Collector(Collector):
 
     @property
     def wow(self):
-        """Obtain GW1000 Weather Observations Website service parameters.
+        """Obtain GW1000/GW1100 Weather Observations Website service parameters.
 
-        Obtain the GW1000 Weather Observations Website service settings.
+        Obtain the GW1000/GW1100 Weather Observations Website service settings.
 
         Returns a dictionary of settings with string data in unicode format.
         """
@@ -2821,9 +2883,10 @@ class Gw1000Collector(Collector):
 
     @property
     def custom(self):
-        """Obtain GW1000 custom server parameters.
+        """Obtain GW1000/GW1100 custom server parameters.
 
-        Obtain the GW1000 settings used for uploading data to a remote server.
+        Obtain the GW1000/GW1100 settings used for uploading data to a remote
+        server.
 
         Returns a dictionary of settings with string data in unicode format.
         """
@@ -2864,16 +2927,16 @@ class Gw1000Collector(Collector):
 
     @property
     def usr_path(self):
-        """Obtain the GW1000 user defined custom paths.
+        """Obtain the GW1000/GW1100 user defined custom paths.
 
-        The GW1000 allows definition of remote server customs paths for use
-        when uploading to a custom service using Ecowitt or Weather Underground
-        format. Different paths may be specified for each protocol.
+        The GW1000/GW1100 allows definition of remote server customs paths for
+        use when uploading to a custom service using Ecowitt or Weather
+        Underground format. Different paths may be specified for each protocol.
 
         Returns a dictionary with each path as a unicode text string.
         """
 
-        # return the GW1000 user defined custom path
+        # return the GW1000/GW1100 user defined custom path
         response = self.station.get_usr_path()
         # determine the size of the user path data
         raw_data_size = six.indexbytes(response, 3)
@@ -2893,24 +2956,24 @@ class Gw1000Collector(Collector):
 
     @property
     def mac_address(self):
-        """Obtain the MAC address of the GW1000.
+        """Obtain the MAC address of the GW1000/GW1100.
 
-        Returns the GW1000 MAC address as a string of colon separated hex
+        Returns the GW1000/GW1100 MAC address as a string of colon separated hex
         bytes.
         """
 
-        # obtain the GW1000 MAC address bytes
+        # obtain the GW1000/GW1100 MAC address bytes
         station_mac_b = self.station.get_mac_address()
         # return the formatted string
         return bytes_to_hex(station_mac_b[4:10], separator=":")
 
     @property
     def firmware_version(self):
-        """Obtain the GW1000 firmware version string.
+        """Obtain the GW1000/GW1100 firmware version string.
 
-        The firmware version can be obtained from the GW1000 via an API call
-        made by a Station object. The Station object takes care of making the
-        API call and validating the response. What is returned is the raw
+        The firmware version can be obtained from the GW1000/GW1100 via an API
+        call made by a Station object. The Station object takes care of making
+        the API call and validating the response. What is returned is the raw
         response as a bytestring. The raw response is unpacked into a sequence
         of bytes. The length of the firmware string is in byte 4 and the
         firmware string starts at byte 5. The bytes comprising the firmware are
@@ -2938,12 +3001,12 @@ class Gw1000Collector(Collector):
         """Get the current Sensors object.
 
         A Sensors object holds the address, id, battery state and signal level
-        data sensors known to the GW1000. The sensor id value can be used to
-        discriminate between connected sensors, connecting sensors and disabled
-        sensor addresses.
+        data sensors known to the GW1000/GW1100. The sensor id value can be
+        used to discriminate between connected sensors, connecting sensors and
+        disabled sensor addresses.
 
         Before using the Gw1000Collector's Sensors object it should be updated
-        with recent sensor ID data via the GW1000 API
+        with recent sensor ID data via the GW1000/GW1100 API
         """
 
         # obtain current sensor id data via the API, we may get a GW1000IOError
@@ -2957,7 +3020,7 @@ class Gw1000Collector(Collector):
         return self.sensors_obj
 
     def startup(self):
-        """Start a thread that collects data from the GW1000 API."""
+        """Start a thread that collects data from the GW1000/GW1100 API."""
 
         try:
             self.thread = Gw1000Collector.CollectorThread(self)
@@ -2970,7 +3033,7 @@ class Gw1000Collector(Collector):
             self.thread = None
 
     def shutdown(self):
-        """Shut down the thread that collects data from the GW1000 API.
+        """Shut down the thread that collects data from the GW1000/GW1100 API.
 
         Tell the thread to stop, then wait for it to finish.
         """
@@ -2989,7 +3052,7 @@ class Gw1000Collector(Collector):
         self.thread = None
 
     class CollectorThread(threading.Thread):
-        """Class used to collect data via the GW1000 API in a thread."""
+        """Class used to collect data via the GW1000/GW1100 API in a thread."""
 
         def __init__(self, client):
             # initialise our parent
@@ -3010,19 +3073,19 @@ class Gw1000Collector(Collector):
                 log_traceback_critical('    ****  ')
 
     class Station(object):
-        """Class to interact directly with the GW1000 API.
+        """Class to interact directly with the GW1000/GW1100 API.
 
         A Station object knows how to:
-        1.  discover a GW1000 via UDP broadcast
-        2.  send a command to the GW1000 API
-        3.  receive a response from the GW1000 API
+        1.  discover a GW1000/GW1100 via UDP broadcast
+        2.  send a command to the GW1000/GW1100 API
+        3.  receive a response from the GW1000/GW1100 API
         4.  verify the response as valid
 
-        A Station object needs an ip address and port as well as a network
+        A Station object needs an IP address and port as well as a network
         broadcast address and port.
         """
 
-        # GW1000 API commands
+        # GW1000/GW1100 API commands
         commands = {
             'CMD_WRITE_SSID': b'\x11',
             'CMD_BROADCAST': b'\x12',
@@ -3066,10 +3129,14 @@ class Gw1000Collector(Collector):
         }
         # header used in each API command and response packet
         header = b'\xff\xff'
+        # known device models
+        known_models = ('GW1000', 'GW1100')
 
+        # TODO. Is lost_contact_log_period required in the signature
         def __init__(self, ip_address=None, port=None,
                      broadcast_address=None, broadcast_port=None,
-                     socket_timeout=None, max_tries=default_max_tries,
+                     socket_timeout=None, broadcast_timeout=None,
+                     max_tries=default_max_tries,
                      retry_wait=default_retry_wait, mac=None,
                      lost_contact_log_period=None):
 
@@ -3078,41 +3145,46 @@ class Gw1000Collector(Collector):
             # network broadcast port
             self.broadcast_port = broadcast_port if broadcast_port is not None else default_broadcast_port
             self.socket_timeout = socket_timeout if socket_timeout is not None else default_socket_timeout
-            # initialise flags to indicate if ip address or port were discovered
+            self.broadcast_timeout = broadcast_timeout if broadcast_timeout is not None else default_broadcast_timeout
+
+            # initialise flags to indicate if IP address or port were discovered
             self.ip_discovered = ip_address is None
             self.port_discovered = port is None
-            # if ip address or port was not specified (None) then attempt to
-            # discover the GW1000 with a UDP broadcast
+            # if IP address or port was not specified (None) then attempt to
+            # discover the GW1000/GW1100 with a UDP broadcast
             if ip_address is None or port is None:
                 for attempt in range(max_tries):
                     try:
-                        # discover() returns a list of (ip address, port) tuples
-                        ip_port_list = self.discover()
+                        # discover devices on the local network, the result is
+                        # a list of dicts in IP address order with each dict
+                        # containing data for a unique discovered device
+                        device_list = self.discover()
                     except socket.error as e:
-                        _msg = "Unable to detect GW1000 ip address and port: %s (%s)" % (e, type(e))
+                        _msg = "Unable to detect device IP address and port: %s (%s)" % (e, type(e))
                         logerr(_msg)
                         # signal that we have a critical error
                         raise
                     else:
-                        # did we find any GW1000
-                        if len(ip_port_list) > 0:
+                        # did we find any GW1000/GW1100
+                        if len(device_list) > 0:
                             # we have at least one, arbitrarily choose the first one
                             # found as the one to use
-                            disc_ip = ip_port_list[0]['ip_address']
-                            disc_port = ip_port_list[0]['port']
+                            disc_ip = device_list[0]['ip_address']
+                            disc_port = device_list[0]['port']
                             # log the fact as well as what we found
-                            gw1000_str = ', '.join([':'.join(['%s:%d' % (d['ip_address'], d['port'])]) for d in ip_port_list])
-                            if len(ip_port_list) == 1:
-                                stem = "GW1000 was"
+                            gw1000_str = ', '.join([':'.join(['%s:%d' % (d['ip_address'],
+                                                                         d['port'])]) for d in device_list])
+                            if len(device_list) == 1:
+                                stem = "%s was" % device_list[0]['model']
                             else:
-                                stem = "Multiple GW1000 were"
+                                stem = "Multiple devices were"
                             loginf("%s found at %s" % (stem, gw1000_str))
                             ip_address = disc_ip if ip_address is None else ip_address
                             port = disc_port if port is None else port
                             break
                         else:
-                            # did not discover any GW1000 so log it
-                            logdbg("Failed attempt %d to detect GW1000 ip address and/or port" % (attempt + 1,))
+                            # did not discover any GW1000/GW1100 so log it
+                            logdbg("Failed attempt %d to detect device IP address and/or port" % (attempt + 1,))
                             # do we try again or raise an exception
                             if attempt < max_tries - 1:
                                 # we still have at least one more try left so sleep
@@ -3120,7 +3192,7 @@ class Gw1000Collector(Collector):
                                 time.sleep(retry_wait)
                             else:
                                 # we've used all our tries, log it and raise an exception
-                                _msg = "Failed to detect GW1000 ip address and/or " \
+                                _msg = "Failed to detect device IP address and/or " \
                                        "port after %d attempts" % (attempt + 1,)
                                 logerr(_msg)
                                 raise GW1000IOError(_msg)
@@ -3132,80 +3204,97 @@ class Gw1000Collector(Collector):
             self.retry_wait = retry_wait
             # start off logging failures
             self.log_failures = True
-            # get my GW1000 MAC address to use later if we have to rediscover
-            if mac is not None:
-                self.mac = mac
-            else:
+            # get my GW1000/GW1100 MAC address to use later if we have to rediscover
+            if mac is None:
                 self.mac = self.get_mac_address()
+            else:
+                self.mac = mac
+            # get my device model
+            try:
+                _firmware_b = self.get_firmware_version()
+            except GW1000IOError:
+                self.model = None
+            else:
+                _firmware_t = struct.unpack("B" * len(_firmware_b), _firmware_b)
+                _firmware_str = "".join([chr(x) for x in _firmware_t[5:5 + _firmware_t[4]]])
+                self.model = self.get_model_from_firmware(_firmware_str)
 
         def discover(self):
-            """Discover any GW1000s on the local network.
+            """Discover any GW1000/GW1100 devices on the local network.
 
             Send a UDP broadcast and check for replies. Decode each reply to
-            obtain the IP address and port number of any GW1000s on the local
-            network. Since there may be multiple GW1000s on the network
-            package each IP address and port as a two way tuple and construct a
-            list of unique IP address/port tuples. When complete return the
-            list of IP address/port tuples found.
+            obtain details of any devices on the local network. Create a dict
+            of details for each device including a derived model name.
+            Construct a list of dicts with details of unique (MAC address)
+            devices that responded. When complete return the list of devices
+            found.
             """
 
             # create a socket object so we can broadcast to the network via
             # IPv4 UDP
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                # set socket datagram to broadcast
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-                # set timeout
-                s.settimeout(self.socket_timeout)
-                # set TTL to 1 to so messages do not go past the local network
-                # segment
-                ttl = struct.pack('b', 1)
-                s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
-                # construct the packet to broadcast
-                packet = self.build_cmd_packet('CMD_BROADCAST')
-                if weewx.debug >= 3:
-                    logdbg("Sending broadcast packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
-                                                                         self.broadcast_address,
-                                                                         self.broadcast_port))
-                # create a list for the results as multiple GW1000 may respond
-                result_list = []
-                # send the Broadcast command
-                s.sendto(packet, (self.broadcast_address, self.broadcast_port))
-                # obtain any responses
-                while True:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            # set socket datagram to broadcast
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            # set timeout
+            s.settimeout(self.broadcast_timeout)
+            # set TTL to 1 to so messages do not go past the local network
+            # segment
+            ttl = struct.pack('b', 1)
+            s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
+            # construct the packet to broadcast
+            packet = self.build_cmd_packet('CMD_BROADCAST')
+            if weewx.debug >= 3:
+                logdbg("Sending broadcast packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
+                                                                     self.broadcast_address,
+                                                                     self.broadcast_port))
+            # initialise a list for the results as multiple GW1000/GW1100 may
+            # respond
+            result_list = []
+            # send the Broadcast command
+            s.sendto(packet, (self.broadcast_address, self.broadcast_port))
+            # obtain any responses
+            while True:
+                try:
+                    response = s.recv(1024)
+                    # log the response if debug is high enough
+                    if weewx.debug >= 3:
+                        logdbg("Received broadcast response '%s'" % (bytes_to_hex(response),))
+                except socket.timeout:
+                    # if we timeout then we are done
+                    break
+                except socket.error:
+                    # raise any other socket error
+                    raise
+                else:
+                    # check the response is valid
                     try:
-                        response = s.recv(1024)
-                        # log the response if debug is high enough
-                        if weewx.debug >= 3:
-                            logdbg("Received broadcast response '%s'" % (bytes_to_hex(response),))
-                    except socket.timeout:
-                        # if we timeout then we are done
-                        break
-                    except socket.error:
-                        # raise any other socket error
-                        raise
+                        self.check_response(response, self.commands['CMD_BROADCAST'])
+                    except (InvalidChecksum, InvalidApiResponse) as e:
+                        # the response was not valid, log it and attempt again
+                        # if we haven't had too many attempts already
+                        logdbg("Invalid response to command '%s': %s" % ('CMD_BROADCAST', e))
+                    except Exception as e:
+                        # Some other error occurred in check_response(),
+                        # perhaps the response was malformed. Log the stack
+                        # trace but continue.
+                        logerr("Unexpected exception occurred while checking response "
+                               "to command '%s': %s" % ('CMD_BROADCAST', e))
+                        log_traceback_error('    ****  ')
                     else:
-                        # check the response is valid
-                        try:
-                            self.check_response(response, self.commands['CMD_BROADCAST'])
-                        except (InvalidChecksum, InvalidApiResponse) as e:
-                            # the response was not valid, log it and attempt again
-                            # if we haven't had too many attempts already
-                            logdbg("Invalid response to command '%s': %s" % ('CMD_BROADCAST', e))
-                        except Exception as e:
-                            # Some other error occurred in check_response(),
-                            # perhaps the response was malformed. Log the stack
-                            # trace but continue.
-                            logerr("Unexpected exception occurred while checking response "
-                                   "to command '%s': %s" % ('CMD_BROADCAST', e))
-                            log_traceback_error('    ****  ')
-                        else:
-                            # TODO. The next few lines could be better constructed and commented.
-                            # our response is valid so ?????
-                            device = self.decode_broadcast_response(response)
-                            # if we haven't seen this ip address and port add them to
-                            # our results list
-                            if not any((d['ip_address'] == device['ip_address'] and d['port'] == device['port']) for d in result_list):
-                                result_list.append(device)
+                        # we have a valid response so decode the response
+                        # and obtain a dict of device data
+                        device = self.decode_broadcast_response(response)
+                        # if we haven't seen this MAC before attempt to obtain
+                        # and save the device model then add the device to our
+                        # results list
+                        if not any((d['mac'] == device['mac']) for d in result_list):
+                            # determine the device model based on the device
+                            # SSID and add the model to the device dict
+                            device['model'] = self.get_model_from_ssid(device.get('ssid'))
+                            # append the device to our list
+                            result_list.append(device)
+            # close our socket
+            s.close()
             # now return our results
             return result_list
 
@@ -3213,8 +3302,8 @@ class Gw1000Collector(Collector):
         def decode_broadcast_response(raw_data):
             """Decode a broadcast response and return the results as a dict.
 
-            A GW1000 response to a CMD_BROADCAST API command consists of a
-            number of control structures around a payload of a data. The API
+            A GW1000/GW1100 response to a CMD_BROADCAST API command consists of
+            a number of control structures around a payload of a data. The API
             response is structured as follows:
 
             bytes 0-1 incl                  preamble, literal 0xFF 0xFF
@@ -3225,30 +3314,30 @@ class Gw1000Collector(Collector):
 
             The data payload is structured as follows:
 
-            bytes 0-5 incl      GW1000 MAC address
-            bytes 6-9 incl      GW1000 IP address
-            bytes 10-11 incl    GW1000 port number
-            bytes 11-           GW1000 AP SSID
+            bytes 0-5 incl      GW1000/GW1100 MAC address
+            bytes 6-9 incl      GW1000/GW1100 IP address
+            bytes 10-11 incl    GW1000/GW1100 port number
+            bytes 11-           GW1000/GW1100 AP SSID
 
-            Note: The GW1000 AP SSID for a given GW1000 is fixed in size but
-            this size can vary from device to device and across firmware
-            versions.
+            Note: The GW1000/GW1100 AP SSID for a given GW1000/GW1100 is fixed
+            in size but this size can vary from device to device and across
+            firmware versions.
 
             There also seems to be a peculiarity in the CMD_BROADCAST response
-            data payload whereby the first character of the GW1000 AP SSID is a
-            non-printable ASCII character. The WS View app appears to ignore or
-            not display this character nor does it appear to be used elsewhere.
-            Consequently this character is ignored.
+            data payload whereby the first character of the GW1000/GW1100 AP
+            SSID is a non-printable ASCII character. The WS View app appears to
+            ignore or not display this character nor does it appear to be used
+            elsewhere. Consequently this character is ignored.
 
             raw_data:   a bytestring containing a validated (structure and
                         checksum verified) raw data response to the
                         CMD_BROADCAST API command
 
             Returns a dict with decoded data keyed as follows:
-                'mac':          GW1000 MAC address (string)
-                'ip_address':   GW1000 IP address (string)
-                'port':         GW1000 port number (integer)
-                'ssid':         GW1000 AP SSID (string)
+                'mac':          GW1000/GW1100 MAC address (string)
+                'ip_address':   GW1000/GW1100 IP address (string)
+                'port':         GW1000/GW1100 port number (integer)
+                'ssid':         GW1000/GW1100 AP SSID (string)
             """
 
             # obtain the response size, it's a big endian short (two byte)
@@ -3261,7 +3350,8 @@ class Gw1000Collector(Collector):
             # extract and decode the MAC address
             data_dict['mac'] = bytes_to_hex(data[0:6], separator=":")
             # extract and decode the IP address
-            data_dict['ip_address'] = '%d.%d.%d.%d' % struct.unpack('>BBBB', data[6:10])
+            data_dict['ip_address'] = '%d.%d.%d.%d' % struct.unpack('>BBBB',
+                                                                    data[6:10])
             # extract and decode the port number
             data_dict['port'] = struct.unpack('>H', data[10: 12])[0]
             # get the SSID as a bytestring
@@ -3278,26 +3368,115 @@ class Gw1000Collector(Collector):
             # return the result dict
             return data_dict
 
-        def get_livedata(self):
-            """Get GW1000 live data.
+        def get_model_from_firmware(self, firmware_string):
+            """Determine the device model from the firmware version.
 
-            Sends the command to obtain live data from the GW1000 to the API
-            with retries. If the GW1000 cannot be contacted re-discovery is
-            attempted. If rediscovery is successful the command is tried again
-            otherwise the lost contact timestamp is set and the exception
-            raised. Any code that calls this method should be prepared to
-            handle a GW1000IOError exception.
+            To date GW1000 and GW1100 firmware versions have included the
+            device model in the firmware version string returned via the device
+            API. Whilst this is not guaranteed to be the case for future
+            firmware releases, in the absence of any other direct means of
+            obtaining the device model number it is a useful means for
+            determining the device model.
+
+            The check is a simple check to see if the model name is contained
+            in the firmware version string returned by the device API.
+
+            If a known model is found in the firmware version string the model
+            is returned as a string. None is returned if (1) the firmware
+            string is None or (2) a known model is not found in the firmware
+            version string.
             """
 
-            # send the API command to obtain live data from the GW1000, be
-            # prepared to catch the exception raised if the GW1000 cannot be
-            # contacted
+            # do we have a firmware string
+            if firmware_string is not None:
+                # we have a firmware string so look for a known model in the
+                # string and return the result
+                return self.get_model(firmware_string)
+            else:
+                # for some reason we have no firmware string, so return None
+                return None
+
+        def get_model_from_ssid(self, ssid_string):
+            """Determine the device model from the device SSID.
+
+            To date the GW1000 and GW1100 device SSID has included the device
+            model in the SSID returned via the device API. Whilst this is not
+            guaranteed to be the case for future firmware releases, in the
+            absence of any other direct means of obtaining the device model
+            number it is a useful means for determining the device model. This
+            is particularly the case when using UDP broadcast to discover
+            devices on the local network.
+
+            Note that it may be possible to alter the SSID used by the device
+            in which case this method may not provide an accurate result.
+            However, as the device SSID is only used during initial device
+            configuration and since altering the device SSID is not a normal
+            part of the initial device configuration, this method of
+            determining the device model is considered adequate for use during
+            discovery by UDP broadcast.
+
+            The check is a simple check to see if the model name is contained
+            in the SSID returned by the device API.
+
+            If a known model is found in the SSID the model is returned as a
+            string. None is returned if (1) the SSID is None or (2) a known
+            model is not found in the SSID.
+            """
+
+            return self.get_model(ssid_string)
+
+        def get_model(self, t):
+            """Determine the device model from a string.
+
+            To date GW1000 and GW1100 firmware versions have included the
+            device model in the firmware version string or the device SSID.
+            Both the firmware version string and device SSID are available via
+            the device API so checking the firmware version string or SSID
+            provides a de facto method of determining the device model.
+
+            This method uses a simple check to see if a known model name is
+            contained in the string concerned.
+
+            Known model strings are contained in a tuple Station.known_models.
+
+            If a known model is found in the string the model is returned as a
+            string. None is returned if a known model is not found in the
+            string.
+            """
+
+            # do we have a string to check
+            if t is not None:
+                # we have a string, now do we have a know model in the string,
+                # if so return the model string
+                for model in self.known_models:
+                    if model in t.upper():
+                        return model
+                # we don't have a known model so return None
+                return None
+            else:
+                # we have no string so return None
+                return None
+
+        def get_livedata(self):
+            """Get GW1000/GW1100 live data.
+
+            Sends the command to obtain live data from the GW1000/GW1100 to the
+            API with retries. If the GW1000/GW1100 cannot be contacted
+            re-discovery is attempted. If rediscovery is successful the command
+            is tried again otherwise the lost contact timestamp is set and the
+            exception raised. Any code that calls this method should be
+            prepared to handle a GW1000IOError exception.
+            """
+
+            # send the API command to obtain live data from the GW1000/GW1100,
+            # be prepared to catch the exception raised if the GW1000/GW1100
+            # cannot be contacted
             try:
                 # return the validated API response
                 return self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
             except GW1000IOError:
-                # there was a problem contacting the GW1000, it could be it
-                # has changed IP address so attempt to rediscover
+                # there was a problem contacting the GW1000/GW1100, it could be
+                # it has changed IP address so attempt to rediscover
                 if not self.rediscover():
                     # we could not re-discover so raise the exception
                     raise
@@ -3307,39 +3486,39 @@ class Gw1000Collector(Collector):
                     return self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
 
         def get_raindata(self):
-            """Get GW1000 rain data.
+            """Get GW1000/GW1100 rain data.
 
-            Sends the command to obtain rain data from the GW1000 to the API
-            with retries. If the GW1000 cannot be contacted a GW1000IOError will
-            have been raised by send_cmd_with_retries() which will be passed
-            through by get_raindata(). Any code calling get_raindata() should
-            be prepared to handle this exception.
+            Sends the command to obtain rain data from the GW10GW1000/GW110000
+            to the API with retries. If the GW1000/GW1100 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_raindata(). Any code calling
+            get_raindata() should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_RAINDATA')
 
         def get_system_params(self):
-            """Read GW1000 system parameters.
+            """Read GW1000/GW1100 system parameters.
 
-            Sends the command to obtain system parameters from the GW1000 to
-            the API with retries. If the GW1000 cannot be contacted a
-            GW1000IOError will have been raised by send_cmd_with_retries()
-            which will be passed through by get_system_params(). Any code
-            calling get_system_params() should be prepared to handle this
-            exception.
+            Sends the command to obtain system parameters from the
+            GW1000/GW1100 to the API with retries. If the GW1000/GW1100 cannot
+            be contacted a GW1000IOError will have been raised by
+            send_cmd_with_retries() which will be passed through by
+            get_system_params(). Any code calling get_system_params() should be
+            prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_SSSS')
 
         def get_ecowitt_net_params(self):
-            """Get GW1000 Ecowitt.net parameters.
+            """Get GW1000/GW1100 Ecowitt.net parameters.
 
-            Sends the command to obtain the GW1000 Ecowitt.net parameters to
-            the API with retries. If the GW1000 cannot be contacted a
-            GW1000IOError will have been raised by send_cmd_with_retries()
-            which will be passed through by get_ecowitt_net_params(). Any code
-            calling get_ecowitt_net_params() should be prepared to handle this
-            exception.
+            Sends the command to obtain the GW1000/GW1100 Ecowitt.net
+            parameters to the API with retries. If the GW1000/GW1100 cannot be
+            contacted a GW1000IOError will have been raised by
+            send_cmd_with_retries() which will be passed through by
+            get_ecowitt_net_params(). Any code calling get_ecowitt_net_params()
+            should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_ECOWITT')
@@ -3347,8 +3526,8 @@ class Gw1000Collector(Collector):
         def get_wunderground_params(self):
             """Get GW1000 Weather Underground parameters.
 
-            Sends the command to obtain the GW1000 Weather Underground
-            parameters to the API with retries. If the GW1000 cannot be
+            Sends the command to obtain the GW1000/GW1100 Weather Underground
+            parameters to the API with retries. If the GW1000/GW1100 cannot be
             contacted a GW1000IOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_wunderground_params(). Any code calling
@@ -3359,24 +3538,25 @@ class Gw1000Collector(Collector):
             return self.send_cmd_with_retries('CMD_READ_WUNDERGROUND')
 
         def get_weathercloud_params(self):
-            """Get GW1000 Weathercloud parameters.
+            """Get GW1000/GW1100 Weathercloud parameters.
 
-            Sends the command to obtain the GW1000 Weathercloud parameters to
-            the API with retries. If the GW1000 cannot be contacted a
-            GW1000IOError will have been raised by send_cmd_with_retries()
-            which will be passed through by get_weathercloud_params(). Any code
-            calling get_weathercloud_params() should be prepared to handle this
+            Sends the command to obtain the GW1000/GW1100 Weathercloud
+            parameters to the API with retries. If the GW1000/GW1100 cannot be
+            contacted a GW1000IOError will have been raised by
+            send_cmd_with_retries() which will be passed through by
+            get_weathercloud_params(). Any code calling
+            get_weathercloud_params() should be prepared to handle this
             exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_WEATHERCLOUD')
 
         def get_wow_params(self):
-            """Get GW1000 Weather Observations Website parameters.
+            """Get GW1000/GW1100 Weather Observations Website parameters.
 
-            Sends the command to obtain the GW1000 Weather Observations Website
-            parameters to the API with retries. If the GW1000 cannot be
-            contacted a GW1000IOError will have been raised by
+            Sends the command to obtain the GW1000/GW1100 Weather Observations
+            Website parameters to the API with retries. If the GW1000/GW1100
+            cannot be contacted a GW1000IOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_wow_params(). Any code calling get_wow_params() should be
             prepared to handle this exception.
@@ -3385,87 +3565,90 @@ class Gw1000Collector(Collector):
             return self.send_cmd_with_retries('CMD_READ_WOW')
 
         def get_custom_params(self):
-            """Get GW1000 custom server parameters.
+            """Get GW1000/GW1100 custom server parameters.
 
-            Sends the command to obtain the GW1000 custom server parameters to
-            the API with retries. If the GW1000 cannot be contacted a
-            GW1000IOError will have been raised by send_cmd_with_retries()
-            which will be passed through by get_custom_params(). Any code
-            calling get_custom_params() should be prepared to handle this
-            exception.
+            Sends the command to obtain the GW1000/GW1100 custom server
+            parameters to the API with retries. If the GW1000/GW1100 cannot be
+            contacted a GW1000IOError will have been raised by
+            send_cmd_with_retries() which will be passed through by
+            get_custom_params(). Any code calling get_custom_params() should be
+            prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_CUSTOMIZED')
 
         def get_usr_path(self):
-            """Get GW1000 user defined custom path.
+            """Get GW1000/GW1100 user defined custom path.
 
-            Sends the command to obtain the GW1000 user defined custom path to
-            the API with retries. If the GW1000 cannot be contacted a
-            GW1000IOError will have been raised by send_cmd_with_retries()
-            which will be passed through by get_usr_path(). Any code calling
-            get_usr_path() should be prepared to handle this exception.
+            Sends the command to obtain the GW1000/GW1100 user defined custom
+            path to the API with retries. If the GW1000/GW1100 cannot be
+            contacted a GW1000IOError will have been raised by
+            send_cmd_with_retries() which will be passed through by
+            get_usr_path(). Any code calling get_usr_path() should be prepared
+            to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_USR_PATH')
 
         def get_mac_address(self):
-            """Get GW1000 MAC address.
+            """Get GW1000/GW1100 MAC address.
 
-            Sends the command to obtain the GW1000 MAC address to the API with
-            retries. If the GW1000 cannot be contacted a GW1000IOError will
-            have been raised by send_cmd_with_retries() which will be passed
-            through by get_mac_address(). Any code calling get_mac_address()
-            should be prepared to handle this exception.
+            Sends the command to obtain the GW1000/GW1100 MAC address to the
+            API with retries. If the GW1000/GW1100 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_mac_address(). Any code calling
+            get_mac_address() should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_STATION_MAC')
 
         def get_firmware_version(self):
-            """Get GW1000 firmware version.
+            """Get GW1000/GW1100 firmware version.
 
-            Sends the command to obtain GW1000 firmware version to the API with
-            retries. If the GW1000 cannot be contacted a GW1000IOError will
-            have been raised by send_cmd_with_retries() which will be passed
-            through by get_firmware_version(). Any code calling
-            get_firmware_version() should be prepared to handle this exception.
+            Sends the command to obtain GW1000/GW1100 firmware version to the
+            API with retries. If the GW1000/GW1100 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_firmware_version(). Any code
+            calling get_firmware_version() should be prepared to handle this
+            exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_FIRMWARE_VERSION')
 
         def get_sensor_id(self):
-            """Get GW1000 sensor ID data.
+            """Get GW1000/GW1100 sensor ID data.
 
-            Sends the command to obtain sensor ID data from the GW1000 to the
-            API with retries. If the GW1000 cannot be contacted re-discovery is
-            attempted. If rediscovery is successful the command is tried again
-            otherwise the lost contact timestamp is set and the exception
-            raised. Any code that calls this method should be prepared to
-            handle a GW1000IOError exception.
+            Sends the command to obtain sensor ID data from the GW1000/GW1100
+            to the API with retries. If the GW1000/GW1100 cannot be contacted
+            re-discovery is attempted. If rediscovery is successful the command
+            is tried again otherwise the lost contact timestamp is set and the
+            exception raised. Any code that calls this method should be
+            prepared to handle a GW1000IOError exception.
             """
 
-            # send the API command to obtain sensor ID data from the GW1000, be
-            # prepared to catch the exception raised if the GW1000 cannot be
-            # contacted
+            # send the API command to obtain sensor ID data from the
+            # GW1000/GW1100, be prepared to catch the exception raised if the
+            # GW1000/GW1100 cannot be contacted
             try:
                 return self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
             except GW1000IOError:
-                # there was a problem contacting the GW1000, it could be it
-                # has changed IP address so attempt to rediscover
+                # there was a problem contacting the GW1000/GW1100, it could be
+                # it has changed IP address so attempt to rediscover
                 if not self.rediscover():
                     # we could not re-discover so raise the exception
                     raise
                 else:
                     # we did rediscover successfully so try again, if it fails
-                    # we get another GW1000IOError exception which will be raised
+                    # we get another GW1000IOError exception which will be
+                    # raised
                     return self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
 
         def get_mulch_offset(self):
             """Get multi-channel temperature and humidity offset data.
 
             Sends the command to obtain the multi-channel temperature and
-            humidity offset data to the API with retries. If the GW1000 cannot
-            be contacted a GW1000IOError will have been raised by
+            humidity offset data to the API with retries. If the GW1000/GW1100
+            cannot be contacted a GW1000IOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_mulch_offset(). Any code calling get_mulch_offset() should be
             prepared to handle this exception.
@@ -3477,10 +3660,11 @@ class Gw1000Collector(Collector):
             """Get PM2.5 offset data.
 
             Sends the command to obtain the PM2.5 sensor offset data to the API
-            with retries. If the GW1000 cannot be contacted a GW1000IOError
-            will have been raised by send_cmd_with_retries() which will be
-            passed through by get_pm25_offset(). Any code calling
-            get_pm25_offset() should be prepared to handle this exception.
+            with retries. If the GW1000/GW1100 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_pm25_offset(). Any code
+            calling get_pm25_offset() should be prepared to handle this
+            exception.
             """
 
             return self.send_cmd_with_retries('CMD_GET_PM25_OFFSET')
@@ -3489,11 +3673,11 @@ class Gw1000Collector(Collector):
             """Get calibration coefficient data.
 
             Sends the command to obtain the calibration coefficient data to the
-            API with retries. If the GW1000 cannot be contacted a GW1000IOError
-            will have been raised by send_cmd_with_retries() which will be
-            passed through by get_calibration_coefficient(). Any code calling
-            get_calibration_coefficient() should be prepared to handle this
-            exception.
+            API with retries. If the GW1000/GW1100 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_calibration_coefficient(). Any
+            code calling get_calibration_coefficient() should be prepared to
+            handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_GAIN')
@@ -3502,11 +3686,11 @@ class Gw1000Collector(Collector):
             """Get soil moisture sensor calibration data.
 
             Sends the command to obtain the soil moisture sensor calibration
-            data to the API with retries. If the GW1000 cannot be contacted a
-            GW1000IOError will have been raised by send_cmd_with_retries()
-            which will be passed through by get_soil_calibration(). Any code
-            calling get_soil_calibration() should be prepared to handle this
-            exception.
+            data to the API with retries. If the GW1000/GW1100 cannot be
+            contacted a GW1000IOError will have been raised by
+            send_cmd_with_retries() which will be passed through by
+            get_soil_calibration(). Any code calling get_soil_calibration()
+            should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_GET_SOILHUMIAD')
@@ -3515,10 +3699,10 @@ class Gw1000Collector(Collector):
             """Get offset calibration data.
 
             Sends the command to obtain the offset calibration data to the API
-            with retries. If the GW1000 cannot be contacted a GW1000IOError
-            will have been raised by send_cmd_with_retries() which will be
-            passed through by get_offset_calibration(). Any code calling
-            get_offset_calibration() should be prepared to handle this
+            with retries. If the GW1000/GW1100 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_offset_calibration(). Any code
+            calling get_offset_calibration() should be prepared to handle this
             exception.
             """
 
@@ -3528,7 +3712,7 @@ class Gw1000Collector(Collector):
             """Get WH45 CO2, PM10 and PM2.5 offset data.
 
             Sends the command to obtain the WH45 CO2, PM10 and PM2.5 sensor
-            offset data to the API with retries. If the GW1000 cannot be
+            offset data to the API with retries. If the GW1000/GW1100 cannot be
             contacted a GW1000IOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_offset_calibration(). Any code calling get_offset_calibration()
@@ -3538,15 +3722,15 @@ class Gw1000Collector(Collector):
             return self.send_cmd_with_retries('CMD_GET_CO2_OFFSET')
 
         def send_cmd_with_retries(self, cmd, payload=b''):
-            """Send a command to the GW1000 API with retries and return the
-            response.
+            """Send a command to the GW1000/GW1100 API with retries and return
+            the response.
 
-            Send a command to the GW1000 and obtain the response. If the
+            Send a command to the GW1000/GW1100 and obtain the response. If the
             the response is valid return the response. If the response is
             invalid an appropriate exception is raised and the command resent
             up to self.max_tries times after which the value None is returned.
 
-            cmd: A string containing a valid GW1000 API command,
+            cmd: A string containing a valid GW1000/GW1100 API command,
                  eg: 'CMD_READ_FIRMWARE_VERSION'
             payload: The data to be sent with the API command, byte string.
 
@@ -3604,7 +3788,7 @@ class Gw1000Collector(Collector):
         def build_cmd_packet(self, cmd, payload=b''):
             """Construct an API command packet.
 
-            A GW1000 API command packet looks like:
+            A GW1000/GW1100 API command packet looks like:
 
             fixed header, command, size, data 1, data 2...data n, checksum
 
@@ -3612,12 +3796,12 @@ class Gw1000Collector(Collector):
                 fixed header is 2 bytes = 0xFFFF
                 command is a 1 byte API command code
                 size is 1 byte being the number of bytes of command to checksum
-                data 1, data 2 ... data n is the data being transmitted and is n
-                    bytes long
+                data 1, data 2 ... data n is the data being transmitted and is
+                    n bytes long
                 checksum is a byte checksum of command + size + data 1 +
                     data 2 ... + data n
 
-            cmd:     A string containing a valid GW1000 API command,
+            cmd:     A string containing a valid GW1000/GW1100 API command,
                        eg: 'CMD_READ_FIRMWARE_VERSION'
             payload: The data to be sent with the API command, byte string.
 
@@ -3628,7 +3812,7 @@ class Gw1000Collector(Collector):
             try:
                 size = len(self.commands[cmd]) + 1 + len(payload) + 1
             except KeyError:
-                raise UnknownCommand("Unknown GW1000 API command '%s'" % (cmd,))
+                raise UnknownCommand("Unknown API command '%s'" % (cmd,))
             # construct the portion of the message for which the checksum is calculated
             body = b''.join([self.commands[cmd], struct.pack('B', size), payload])
             # calculate the checksum
@@ -3637,38 +3821,55 @@ class Gw1000Collector(Collector):
             return b''.join([self.header, body, struct.pack('B', checksum)])
 
         def send_cmd(self, packet):
-            """Send a command to the GW1000 API and return the response.
+            """Send a command to the GW1000/GW1100 API and return the response.
 
-            Send a command to the GW1000 and return the response. Socket
+            Send a command to the GW1000/GW1100 and return the response. Socket
             related errors are trapped and raised, code calling send_cmd should
             be prepared to handle such exceptions.
 
-            cmd: A valid GW1000 API command
+            cmd: A valid GW1000/GW1100 API command
 
             Returns the response as a byte string.
             """
 
-            # create socket objects for sending commands and broadcasting to the network
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(self.socket_timeout)
-                try:
-                    s.connect((self.ip_address, self.port))
-                    if weewx.debug >= 3:
-                        logdbg("Sending packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
-                                                                   self.ip_address.decode(),
-                                                                   self.port))
-                    s.sendall(packet)
-                    response = s.recv(1024)
-                    if weewx.debug >= 3:
-                        logdbg("Received response '%s'" % (bytes_to_hex(response),))
-                    return response
-                except socket.error:
-                    raise
+            # create a socket object for sending commands and broadcasting to
+            # the network, would normally do this using a with statement but
+            # with statement support for socket.socket did not appear until
+            # python 3.
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            # set the socket timeout
+            s.settimeout(self.socket_timeout)
+            # wrap our connect in a try..except so we can catch any socket
+            # related exceptions
+            try:
+                # connect to the device
+                s.connect((self.ip_address, self.port))
+                # if required log the packet we are sending
+                if weewx.debug >= 3:
+                    logdbg("Sending packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
+                                                               self.ip_address.decode(),
+                                                               self.port))
+                # send the packet
+                s.sendall(packet)
+                # obtain the response, we assume here the response will be less
+                # than 1024 characters
+                response = s.recv(1024)
+                # if required log the response
+                if weewx.debug >= 3:
+                    logdbg("Received response '%s'" % (bytes_to_hex(response),))
+                # return the response
+                return response
+            except socket.error:
+                # we received a socket error, raise it
+                raise
+            finally:
+                # make sure we close our socket
+                s.close()
 
         def check_response(self, response, cmd_code):
-            """Check the validity of a GW1000 API response.
+            """Check the validity of a GW1000/GW1100 API response.
 
-            Checks the validity of a GW1000 API response. Two checks are
+            Checks the validity of a GW1000/GW1100 API response. Two checks are
             performed:
 
             1.  the third byte of the response is the same as the command code
@@ -3679,9 +3880,10 @@ class Gw1000Collector(Collector):
             If any check fails an appropriate exception is raised, if all checks
             pass the method exits without raising an exception.
 
-            response: Response received from the GW1000 API call. Byte string.
-            cmd_code: Command code send to GW1000 API. Byte string of length
-                      one.
+            response: Response received from the GW1000/GW1100 API call. Byte
+                      string.
+            cmd_code: Command code send to GW1000/GW1100 API. Byte string of
+                      length one.
             """
 
             # first check that the 3rd byte of the response is the command code that was issued
@@ -3713,10 +3915,10 @@ class Gw1000Collector(Collector):
 
         @staticmethod
         def calc_checksum(data):
-            """Calculate the checksum for a GW1000 API call or response.
+            """Calculate the checksum for a GW1000/GW1100 API call or response.
 
-            The checksum used on the GW1000 responses is simply the LSB of the
-            sum of the bytes.
+            The checksum used on the GW1000/GW1100 responses is simply the LSB
+            of the sum of the bytes.
 
             data: The data on which the checksum is to be calculated. Byte
                   string.
@@ -3734,44 +3936,46 @@ class Gw1000Collector(Collector):
             return checksum % 256
 
         def rediscover(self):
-            """Attempt to rediscover a lost GW1000.
+            """Attempt to rediscover a lost GW1000/GW1100.
 
-            Use UDP broadcast to discover a GW1000 that may have changed to a
-            new IP. We should not be re-discovering a GW1000 for which the user
-            specified an IP, only for those for which we discovered the IP
-            address on startup. If a GW1000 is discovered then change my
-            ip_address and port properties as necessary to use the device in
-            future. If the rediscover was successful return True otherwise
-            return False.
+            Use UDP broadcast to discover a GW1000/GW1100 that may have changed
+            to a new IP. We should not be re-discovering a GW1000/GW1100 for
+            which the user specified an IP, only for those for which we
+            discovered the IP address on startup. If a GW1000/GW1100 is
+            discovered then change my ip_address and port properties as
+            necessary to use the device in future. If the rediscover was
+            successful return True otherwise return False.
             """
 
             # we will only rediscover if we first discovered
             if self.ip_discovered:
                 # log that we are attempting re-discovery
                 if self.log_failures:
-                    loginf("Attempting to re-discover GW1000...")
+                    loginf("Attempting to re-discover %s..." % self.model)
                 # attempt to discover up to self.max_tries times
                 for attempt in range(self.max_tries):
                     # sleep before our attempt, but not if its the first one
                     if attempt > 0:
                         time.sleep(self.retry_wait)
                     try:
-                        # discover() returns a list of (ip address, port) tuples
-                        ip_port_list = self.discover()
+                        # discover devices on the local network, the result is
+                        # a list of dicts in IP address order with each dict
+                        # containing data for a unique discovered device
+                        device_list = self.discover()
                     except socket.error as e:
                         # log the error
-                        logdbg("Failed attempt %d to detect any GW1000: %s (%s)" % (attempt + 1,
-                                                                                    e,
-                                                                                    type(e)))
+                        logdbg("Failed attempt %d to detect any devices: %s (%s)" % (attempt + 1,
+                                                                                     e,
+                                                                                     type(e)))
                     else:
-                        # did we find any GW1000
-                        if len(ip_port_list) > 0:
+                        # did we find any GW1000/GW1100
+                        if len(device_list) > 0:
                             # we have at least one, log the fact as well as what we found
-                            gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in ip_port_list])
-                            if len(ip_port_list) == 1:
-                                stem = "GW1000 was"
+                            gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in device_list])
+                            if len(device_list) == 1:
+                                stem = "%s was" % device_list[0]['model']
                             else:
-                                stem = "Multiple GW1000 were"
+                                stem = "Multiple devices were"
                             loginf("%s found at %s" % (stem, gw1000_str))
                             # keep our current IP address and port in case we
                             # don't find a match as we will change our
@@ -3781,17 +3985,17 @@ class Gw1000Collector(Collector):
                             present_port = self.port
                             # iterate over each candidate checking their MAC
                             # address against my mac property. This way we know
-                            # we are connecting to the GW1000 we were
+                            # we are connecting to the GW1000/GW1100 we were
                             # previously using
-                            for _ip, _port in ip_port_list:
-                                self.ip_address = _ip.encode()
-                                self.port = _port
+                            for _ip, _port in device_list:
                                 # do the MACs match, if so we have our old
                                 # device and we can exit the loop
                                 if self.mac == self.get_mac_address():
+                                    self.ip_address = _ip.encode()
+                                    self.port = _port
                                     break
                             else:
-                                # exhausted the ip_port_list without a match,
+                                # exhausted the device_list without a match,
                                 # revert to our old IP address and port
                                 self.ip_address = present_ip
                                 self.port = present_port
@@ -3799,18 +4003,20 @@ class Gw1000Collector(Collector):
                                 # attempts left
                                 continue
                             # log the new IP address and port
-                            loginf("GW1000 at address %s:%d will be used" % (self.ip_address.decode(),
-                                                                             self.port))
+                            loginf("%s at address %s:%d will be used" % (self.model,
+                                                                         self.ip_address.decode(),
+                                                                         self.port))
                             # return True indicating the re-discovery was successful
                             return True
                         else:
-                            # did not discover any GW1000 so log it
+                            # did not discover any GW1000/GW1100 so log it
                             if self.log_failures:
-                                logdbg("Failed attempt %d to detect any GW1000" % (attempt + 1,))
+                                logdbg("Failed attempt %d to detect any devices" % (attempt + 1,))
                 else:
                     # we exhausted our attempts at re-discovery so log it
                     if self.log_failures:
-                        loginf("Failed to detect original GW1000 after %d attempts" % (attempt + 1,))
+                        loginf("Failed to detect original %s after %d attempts" % (self.model,
+                                                                                   attempt + 1))
             else:
                 # an IP address was specified so we cannot go searching, log it
                 if self.log_failures:
@@ -3820,7 +4026,7 @@ class Gw1000Collector(Collector):
             return False
 
     class Parser(object):
-        """Class to parse GW1000 sensor data."""
+        """Class to parse GW1000/GW1100 sensor data."""
 
         # TODO. Would be good to get rid of this too, but it is presently used elsewhere
         multi_batt = {'wh40': {'mask': 1 << 4},
@@ -3828,9 +4034,10 @@ class Gw1000Collector(Collector):
                       'wh25': {'mask': 1 << 6},
                       'wh65': {'mask': 1 << 7}
                       }
-        # Dictionary keyed by GW1000 response element containing various
-        # parameters for each response 'field'. Dictionary tuple format
-        # is (decode function name, size of data in bytes, GW1000 field name)
+        # Dictionary keyed by GW1000/GW1100 response element containing various
+        # parameters for each response 'field'. Dictionary tuple format is
+        # (decode function name, size of data in bytes, GW1000/GW1100 field
+        # name)
         response_struct = {
             b'\x01': ('decode_temp', 2, 'intemp'),
             b'\x02': ('decode_temp', 2, 'outtemp'),
@@ -3947,12 +4154,12 @@ class Gw1000Collector(Collector):
             b'\x79': ('decode_wet', 1, 'leafwet8')
         }
 
-        # tuple of field codes for rain related fields in the GW1000 live data
-        # so we can isolate these fields
+        # tuple of field codes for rain related fields in the GW1000/GW1100
+        # live data so we can isolate these fields
         rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
                             b'\x11', b'\x12', b'\x13', b'\x14')
-        # tuple of field codes for wind related fields in the GW1000 live data
-        # so we can isolate these fields
+        # tuple of field codes for wind related fields in the GW1000/GW1100
+        # live data so we can isolate these fields
         wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
 
         def __init__(self, is_wh24=False, debug_rain=False, debug_wind=False):
@@ -4065,7 +4272,8 @@ class Gw1000Collector(Collector):
         def decode_humid(data, field=None):
             """Decode humidity data.
 
-            Data is contained in a single unsigned byte and represents whole units.
+            Data is contained in a single unsigned byte and represents whole
+            units.
             """
 
             if len(data) == 1:
@@ -4166,11 +4374,11 @@ class Gw1000Collector(Collector):
         def decode_utc(data, field=None):
             """Decode UTC time.
 
-            The GW1000 API claims to provide 'UTC time' as a 4 byte big endian
-            integer. The 4 byte integer is a unix epoch timestamp; however,
-            the timestamp is offset by the stations timezone. So for a station
-            in the +10 hour timezone, the timestamp returned is the present
-            epoch timestamp plus 10 * 3600 seconds.
+            The GW1000/GW1100 API claims to provide 'UTC time' as a 4 byte big
+            endian integer. The 4 byte integer is a unix epoch timestamp;
+            however, the timestamp is offset by the stations timezone. So for a
+            station in the +10 hour timezone, the timestamp returned is the
+            present epoch timestamp plus 10 * 3600 seconds.
 
             When decoded in localtime the decoded date-time is off by the
             station time zone, when decoded as GMT the date and time figures
@@ -4284,8 +4492,8 @@ class Gw1000Collector(Collector):
         def decode_batt(data, field=None):
             """Decode battery status data.
 
-            GW1000 firmware version 1.6.4 and earlier supported 16 bytes of
-            battery state data at response field x4C for the following
+            GW1000/GW1100 firmware version 1.6.4 and earlier supported 16 bytes
+            of battery state data at response field x4C for the following
             sensors:
                 WH24, WH25, WH26(WH32), WH31 ch1-8, WH40, WH41/WH43 ch1-4,
                 WH51 ch1-8, WH55 ch1-4, WH57, WH68 and WS80
@@ -4296,21 +4504,21 @@ class Gw1000Collector(Collector):
             for connected sensors. The decode_batt() method has been retained
             to support devices using firmware version 1.6.4 and earlier.
 
-            Since the GW1000 driver now obtains battery state information via
-            CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID only the decode_batt()
-            method now returns None so that firmware versions before 1.6.5
-            continue to be supported.
+            Since the GW1000/GW1100 driver now obtains battery state
+            information via CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID only
+            the decode_batt() method now returns None so that firmware versions
+            before 1.6.5 continue to be supported.
             """
 
             return None
 
     class Sensors(object):
-        """Class to manage GW1000 sensor ID data.
+        """Class to manage GW1000/GW1100 sensor ID data.
 
         Class Sensors allows access to various elements of sensor ID data via a
         number of properties and methods when the class is initialised with the
-        GW1000 API response to a CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID
-        command.
+        GW1000/GW1100 API response to a CMD_READ_SENSOR_ID_NEW or
+        CMD_READ_SENSOR_ID command.
 
         A Sensors object can be initialised with sensor ID data on
         instantiation or an existing Sensors object can be updated by calling
@@ -4319,11 +4527,11 @@ class Gw1000Collector(Collector):
         """
 
         # Tuple of sensor ID values for sensors that are not registered with
-        # the GW1000. 'fffffffe' means the sensor is disabled, 'ffffffff' means
-        # the sensor is registering.
+        # the GW1000/GW1100. 'fffffffe' means the sensor is disabled,
+        # 'ffffffff' means the sensor is registering.
         not_registered = ('fffffffe', 'ffffffff')
 
-        def __init__(self, sensor_id_data=None, show_battery=False):
+        def __init__(self, sensor_id_data=None, show_battery=False, debug_sensors=False):
             """Initialise myself"""
 
             # set the show_battery property
@@ -4333,6 +4541,8 @@ class Gw1000Collector(Collector):
             # parse the raw sensor ID data and store the results in my parsed
             # sensor data dict
             self.set_sensor_id_data(sensor_id_data)
+            # debug sensors
+            self.debug_sensors = debug_sensors
 
         def set_sensor_id_data(self, id_data):
             """Parse the raw sensor ID data and store the results."""
@@ -4352,29 +4562,34 @@ class Gw1000Collector(Collector):
                 while index < len(data):
                     # get the sensor address
                     address = data[index:index + 1]
-                    # get the sensor ID
-                    sensor_id = bytes_to_hex(data[index + 1: index + 5],
-                                             separator='',
-                                             caps=False)
-                    # get the method to be used to decode the battery state
-                    # data
-                    batt_fn = Gw1000Collector.sensor_ids[data[index:index + 1]]['batt_fn']
-                    # get the raw battery state data
-                    batt = six.indexbytes(data, index + 5)
-                    # if we are not showing all battery state data then the
-                    # battery state for any sensor with signal == 0 must be set
-                    # to None, otherwise parse the raw battery state data as
-                    # applicable
-                    if not self.show_battery and six.indexbytes(data, index + 6) == 0:
-                        batt_state = None
+                    # do we know how to decode this address
+                    if address in Gw1000Collector.sensor_ids.keys():
+                        # get the sensor ID
+                        sensor_id = bytes_to_hex(data[index + 1: index + 5],
+                                                 separator='',
+                                                 caps=False)
+                        # get the method to be used to decode the battery state
+                        # data
+                        batt_fn = Gw1000Collector.sensor_ids[data[index:index + 1]]['batt_fn']
+                        # get the raw battery state data
+                        batt = six.indexbytes(data, index + 5)
+                        # if we are not showing all battery state data then the
+                        # battery state for any sensor with signal == 0 must be set
+                        # to None, otherwise parse the raw battery state data as
+                        # applicable
+                        if not self.show_battery and six.indexbytes(data, index + 6) == 0:
+                            batt_state = None
+                        else:
+                            # parse the raw battery state data
+                            batt_state = getattr(self, batt_fn)(batt)
+                        # now add the sensor to our sensor data dict
+                        self.sensor_data[address] = {'id': sensor_id,
+                                                     'battery': batt_state,
+                                                     'signal': six.indexbytes(data, index + 6)
+                                                     }
                     else:
-                        # parse the raw battery state data
-                        batt_state = getattr(self, batt_fn)(batt)
-                    # now add the sensor to our sensor data dict
-                    self.sensor_data[address] = {'id': sensor_id,
-                                                 'battery': batt_state,
-                                                 'signal': six.indexbytes(data, index + 6)
-                                                 }
+                        if self.debug_sensors:
+                            loginf("Unknown sensor ID '%s'" % bytes_to_hex(address))
                     # each sensor entry is seven bytes in length so skip to the
                     # start of the next sensor
                     index += 7
@@ -4383,12 +4598,12 @@ class Gw1000Collector(Collector):
         def addresses(self):
             """Obtain a list of sensor addresses.
 
-            This includes all sensor addresses reported by the GW1000, this
-            includes:
-            - sensors that are actually connected to the GW1000
-            - sensors that are attempting to connect to the GW1000
-            - GW1000 sensor addresses that are searching for a sensor
-            - GW1000 sensor addresses that are disabled
+            This includes all sensor addresses reported by the GW1000/GW1100,
+            this includes:
+            - sensors that are actually connected to the GW1000/GW1100
+            - sensors that are attempting to connect to the GW1000/GW1100
+            - GW1000/GW1100 sensor addresses that are searching for a sensor
+            - GW1000/GW1100 sensor addresses that are disabled
             """
 
             # this is simply the list of keys to our sensor data dict
@@ -4399,11 +4614,12 @@ class Gw1000Collector(Collector):
             """Obtain a list of sensor addresses for connected sensors only.
 
             Sometimes we only want a list of addresses for sensors that are
-            actually connected to the GW1000. We can filter out those addresses
-            that do not have connected sensors by looking at the sensor ID. If
-            the sensor ID is 'fffffffe' either the sensor is connecting to the
-            GW1000 or the GW1000 is searching for a sensor for that address. If
-            the sensor ID is 'ffffffff' the GW1000 sensor address is disabled.
+            actually connected to the GW1000/GW1100. We can filter out those
+            addresses that do not have connected sensors by looking at the
+            sensor ID. If the sensor ID is 'fffffffe' either the sensor is
+            connecting to the GW1000/GW1100 or the GW1000/GW1100 is searching
+            for a sensor for that address. If the sensor ID is 'ffffffff' the
+            GW1000/GW1100 sensor address is disabled.
             """
 
             # initialise a list to hold our connected sensor addresses
@@ -4636,12 +4852,12 @@ def obfuscate(plain, obf_char='*'):
 # ============================================================================
 
 class DirectGw1000(object):
-    """Class to interact with GW1000 driver when run directly.
+    """Class to interact with GW1000/GW1100 driver when run directly.
 
     Would normally the direct running of a driver from main() only but when run
-    directly the GW1000 driver has many options so pushing the detail into its
-    own class/object makes sense. Also simplifies some of the test suite
-    routines/calls.
+    directly the GW1000/GW1100 driver has many options so pushing the detail
+    into its own class/object makes sense. Also simplifies some of the test
+    suite routines/calls.
 
     A DirectGw1000 object is created with just an optparse options dict and a
     standard WeeWX station dict. Once created the DirectGw1000()
@@ -4649,8 +4865,8 @@ class DirectGw1000(object):
     options.
     """
 
-    # GW1000 observation group dict, this maps all GW1000 'fields' to a
-    # WeeWX unit group
+    # GW1000/GW1100 observation group dict, this maps all GW1000/GW1100
+    # 'fields' to a WeeWX unit group
     gw1000_obs_group_dict = {
         'intemp': 'group_temperature',
         'outtemp': 'group_temperature',
@@ -4899,25 +5115,25 @@ class DirectGw1000(object):
 
         Determine the IP address to use given a station config dict and command
         line options. The IP address is chosen as follows:
-        - if specified use the ip address from the command line
+        - if specified use the IP address from the command line
         - if an IP address was not specified on the command line obtain the IP
           address from the station config dict
         - if the station config dict does not specify an IP address, or if it
           is set to 'auto', return None to force device discovery
         """
 
-        # obtain an ip address from the command line options
+        # obtain an IP address from the command line options
         ip_address = self.opts.ip_address if self.opts.ip_address else None
-        # if we didn't get an ip address check the station config dict
+        # if we didn't get an IP address check the station config dict
         if ip_address is None:
-            # obtain the ip address from the station config dict
+            # obtain the IP address from the station config dict
             ip_address = self.stn_dict.get('ip_address')
             # if the station config dict specifies some variation of 'auto'
             # then we need to return None to force device discovery
             if ip_address is not None:
                 # do we have a variation of 'auto'
                 if ip_address.lower() == 'auto':
-                    # we need to autodetect ip address so set to None
+                    # we need to autodetect IP address so set to None
                     ip_address = None
                     if weewx.debug >= 1:
                         print()
@@ -5056,8 +5272,8 @@ class DirectGw1000(object):
     def system_params(self):
         """Display system parameters.
 
-        Obtain and display the GW1000 system parameters. GW1000 IP address and
-        port are derived (in order) as follows:
+        Obtain and display the GW1000/GW1100 system parameters. GW1000/GW1100
+        IP address and port are derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5073,22 +5289,23 @@ class DirectGw1000(object):
         }
         # wrap in a try..except in case there is an error
         try:
-            # get a GW1000 Gw1000Collector object
+            # get a GW1000/GW1100 Gw1000Collector object
             collector = Gw1000Collector(ip_address=self.ip_address,
                                         port=self.port)
-            # identify the GW1000 being used
+            # identify the GW1000/GW1100 being used
             print()
-            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                     collector.station.port))
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
             # get the collector objects system_parameters property
             sys_params_dict = collector.system_parameters
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except socket.timeout:
             # socket timeout so inform the user
             print()
-            print("Timeout. GW1000 did not respond.")
+            print("Timeout. %s did not respond." % collector.station.model)
         else:
             # create a meaningful string for frequency representation
             freq_str = freq_decode.get(sys_params_dict['frequency'], 'Unknown')
@@ -5099,30 +5316,32 @@ class DirectGw1000(object):
             _sensor_type_str = 'WH24' if _is_wh24 else 'WH65'
             # print the system parameters
             print()
-            print("GW1000 frequency: %s (%s)" % (sys_params_dict['frequency'],
-                                                 freq_str))
-            print("GW1000 sensor type: %s (%s)" % (sys_params_dict['sensor_type'],
-                                                   _sensor_type_str))
-            # The GW1000 API returns what is labelled "UTC" but is in fact the
-            # current epoch timestamp adjusted by the station timezone offset.
-            # So when the timestamp is converted to a human readable GMT
-            # date-time string it in fact shows the local date-time. We can
-            # work around this by formatting this offset UTC timestamp as a UTC
-            # date-time but then calling it local time. ideally we would
+            print("%s frequency: %s (%s)" % (collector.station.model,
+                                             sys_params_dict['frequency'],
+                                             freq_str))
+            print("%s sensor type: %s (%s)" % (collector.station.model,
+                                               sys_params_dict['sensor_type'],
+                                               _sensor_type_str))
+            # The GW1000/GW1100 API returns what is labelled "UTC" but is in
+            # fact the current epoch timestamp adjusted by the station timezone
+            # offset. So when the timestamp is converted to a human readable
+            # GMT  date-time string it in fact shows the local date-time. We
+            # can work around this by formatting this offset UTC timestamp as a
+            # UTC date-time but then calling it local time. ideally we would
             # re-adjust to remove the timezone offset to get the real
             # (unadjusted) epoch timestamp but since the timezone index is
             # stored as an arbitrary number rather than an offset in seconds
             # this is not possible. We can only do what we can.
             date_time_str = time.strftime("%-d %B %Y %H:%M:%S",
                                           time.gmtime(sys_params_dict['utc']))
-            print("GW1000 date-time: %s" % date_time_str)
-            print("GW1000 timezone index: %s" % (sys_params_dict['timezone_index'],))
-            print("GW1000 DST status: %s" % (sys_params_dict['dst_status'],))
+            print("%s date-time: %s" % (collector.station.model, date_time_str))
+            print("%s timezone index: %s" % (collector.station.model, sys_params_dict['timezone_index']))
+            print("%s DST status: %s" % (collector.station.model, sys_params_dict['dst_status']))
 
     def get_rain_data(self):
-        """Display the GW1000 rain data.
+        """Display the GW1000/GW1100 rain data.
 
-        Obtain and display the GW1000 rain data. GW1000 IP address and port are
+        Obtain and display the GW1000/GW1100 rain data. GW1000/GW1100 IP address and port are
         derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
@@ -5131,21 +5350,22 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GW1000 Gw1000Collector object
+            # get a GW1000/GW1100 Gw1000Collector object
             collector = Gw1000Collector(ip_address=self.ip_address,
                                         port=self.port)
-            # identify the GW1000 being used
+            # identify the GW1000/GW1100 being used
             print()
-            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                     collector.station.port))
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
             # get the collector objects get_rain_data property
             rain_data = collector.rain_data
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except socket.timeout:
             print()
-            print("Timeout. GW1000 did not respond.")
+            print("Timeout. %s did not respond." % collector.station.model)
         else:
             print()
             print("%10s: %.1f mm/%.1f in" % ('Rain rate', rain_data['rain_rate'], rain_data['rain_rate'] / 25.4))
@@ -5156,11 +5376,11 @@ class DirectGw1000(object):
 
     def get_mulch_offset(self):
         """Display the multi-channel temperature and humidity offset data from
-        a GW1000.
+        a GW1000/GW1100.
 
         Obtain and display the multi-channel temperature and humidity offset
-        data from the selected GW1000. GW1000 IP address and port are derived
-        (in order) as follows:
+        data from the selected GW1000/GW1100. GW1000/GW1100 IP address and port
+        are derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5171,19 +5391,20 @@ class DirectGw1000(object):
             # get a Gw1000Collector object
             collector = Gw1000Collector(ip_address=self.ip_address,
                                         port=self.port)
-            # identify the GW1000 being used
+            # identify the GW1000/GW1100 being used
             print()
-            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                     collector.station.port))
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
             # get the mulch offset data from the collector object's mulch_offset
             # property
             mulch_offset_data = collector.mulch_offset
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except socket.timeout:
             print()
-            print("Timeout. GW1000 did not respond.")
+            print("Timeout. %s did not respond." % collector.station.model)
         else:
             # did we get any mulch offset data
             if mulch_offset_data is not None:
@@ -5202,13 +5423,14 @@ class DirectGw1000(object):
                                        "%d" % mulch_offset_data[channel]['hum']))
             else:
                 print()
-                print("GW1000 did not respond.")
+                print("%s did not respond." % collector.station.model)
 
     def get_pm25_offset(self):
-        """Display the PM2.5 offset data from a GW1000.
+        """Display the PM2.5 offset data from a GW1000/GW1100.
 
-        Obtain and display the PM2.5 offset data from the selected GW1000.
-        GW1000 IP address and port are derived (in order) as follows:
+        Obtain and display the PM2.5 offset data from the selected
+        GW1000/GW1100. GW1000/GW1100 IP address and port are derived (in order)
+        as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5219,19 +5441,20 @@ class DirectGw1000(object):
             # get a Gw1000Collector object
             collector = Gw1000Collector(ip_address=self.ip_address,
                                         port=self.port)
-            # identify the GW1000 being used
+            # identify the GW1000/GW1100 being used
             print()
-            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                     collector.station.port))
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
             # get the PM2.5 offset data from the collector object's pm25_offset
             # property
             pm25_offset_data = collector.pm25_offset
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except socket.timeout:
             print()
-            print("Timeout. GW1000 did not respond.")
+            print("Timeout. %s did not respond." % collector.station.model)
         else:
             # did we get any PM2.5 offset data
             if pm25_offset_data is not None:
@@ -5244,13 +5467,14 @@ class DirectGw1000(object):
                     print("Channel %d PM2.5 offset: %5s" % (channel, "%2.1f" % pm25_offset_data[channel]))
             else:
                 print()
-                print("GW1000 did not respond.")
+                print("%s did not respond." % collector.station.model)
 
     def get_co2_offset(self):
-        """Display the WH45 CO2, PM10 and PM2.5 offset data from a GW1000.
+        """Display WH45 CO2, PM10 and PM2.5 offset data from a GW1000/GW1100.
 
         Obtain and display the WH45 CO2, PM10 and PM2.5 offset data from the
-        selected GW1000. GW1000 IP address and port are derived (in order) as
+        selected GW1000/GW1100. GW1000/GW1100 IP address and port are derived
+        (in order) as
         follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
@@ -5262,19 +5486,20 @@ class DirectGw1000(object):
             # get a Gw1000Collector object
             collector = Gw1000Collector(ip_address=self.ip_address,
                                         port=self.port)
-            # identify the GW1000 being used
+            # identify the GW1000/GW1100 being used
             print()
-            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                     collector.station.port))
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
             # get the offset data from the collector object's co2_offset
             # property
             co2_offset_data = collector.co2_offset
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except socket.timeout:
             print()
-            print("Timeout. GW1000 did not respond.")
+            print("Timeout. %s did not respond." % collector.station.model)
         else:
             # did we get any offset data
             if co2_offset_data is not None:
@@ -5286,13 +5511,14 @@ class DirectGw1000(object):
                 print("PM2.5 offset: %5s" % ("%2.1f" % co2_offset_data['pm25']))
             else:
                 print()
-                print("GW1000 did not respond.")
+                print("%s did not respond." % collector.station.model)
 
     def get_calibration(self):
-        """Display the calibration data from a GW1000.
+        """Display the calibration data from a GW1000/GW1100.
 
-        Obtain and display the calibration data from the selected GW1000.
-        GW1000 IP address and port are derived (in order) as follows:
+        Obtain and display the calibration data from the selected
+        GW1000/GW1100. GW1000/GW1100 IP address and port are derived (in order)
+        as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5303,19 +5529,20 @@ class DirectGw1000(object):
             # get a Gw1000Collector object
             collector = Gw1000Collector(ip_address=self.ip_address,
                                         port=self.port)
-            # identify the GW1000 being used
+            # identify the GW1000/GW1100 being used
             print()
-            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                     collector.station.port))
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
             # get the calibration data from the collector object's calibration
             # property
             calibration_data = collector.calibration
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except socket.timeout:
             print()
-            print("Timeout. GW1000 did not respond.")
+            print("Timeout. %s did not respond." % collector.station.model)
         else:
             # did we get any calibration data
             if calibration_data is not None:
@@ -5335,14 +5562,14 @@ class DirectGw1000(object):
                 print("%26s: %4.1f %s" % ("Wind direction offset", calibration_data['dir'], u'\xb0'))
             else:
                 print()
-                print("GW1000 did not respond.")
+                print("%s did not respond." % collector.station.model)
 
     def get_soil_calibration(self):
-        """Display the soil moisture sensor calibration data from a GW1000.
+        """Display soil moisture sensor calibration data from a GW1000/GW1100.
 
         Obtain and display the soil moisture sensor calibration data from the
-        selected GW1000. GW1000 IP address and port are derived (in order) as
-        follows:
+        selected GW1000/GW1100. GW1000/GW1100 IP address and port are derived
+        (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5353,19 +5580,20 @@ class DirectGw1000(object):
             # get a Gw1000Collector object
             collector = Gw1000Collector(ip_address=self.ip_address,
                                         port=self.port)
-            # identify the GW1000 being used
+            # identify the GW1000/GW1100 being used
             print()
-            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                     collector.station.port))
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
             # get the calibration data from the collector object's
             # soil_calibration property
             calibration_data = collector.soil_calibration
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except socket.timeout:
             print()
-            print("Timeout. GW1000 did not respond.")
+            print("Timeout. %s did not respond." % collector.station.model)
         else:
             # did we get any calibration data
             if calibration_data is not None:
@@ -5387,14 +5615,14 @@ class DirectGw1000(object):
                     print("%12s: %d" % ("100% AD", channel_dict['adj_max']))
             else:
                 print()
-                print("GW1000 did not respond.")
+                print("%s did not respond." % collector.station.model)
 
     def get_services(self):
-        """Display the GW1000 Weather Services settings.
+        """Display the GW1000/GW1100 Weather Services settings.
 
         Obtain and display the settings for the various weather services
-        supported by the GW1000. GW1000 IP address and port are derived (in
-        order) as follows:
+        supported by the GW1000/GW1100. GW1000/GW1100 IP address and port are
+        derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5418,7 +5646,7 @@ class DirectGw1000(object):
                 else:
                     print("%22s: %d minute" % ("Upload Interval",
                                                data_dict['interval']))
-                # GW1000 MAC
+                # GW1000/GW1100 MAC
                 print("%22s: %s" % ("MAC", data_dict['mac']))
 
         def print_wunderground(data_dict=None):
@@ -5504,24 +5732,25 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GW1000 Gw1000Collector object
+            # get a GW1000/GW1100 Gw1000Collector object
             collector = Gw1000Collector(ip_address=self.ip_address,
                                         port=self.port)
-            # identify the GW1000 being used
+            # identify the GW1000/GW1100 being used
             print()
-            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                     collector.station.port))
-            # get the settings for each service know to the GW1000, store them
-            # in a dict keyed by the service name
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
+            # get the settings for each service know to the GW1000/GW1100,
+            # store them in a dict keyed by the service name
             services_data = dict()
             for service in collector.services:
                 services_data[service['name']] = getattr(collector, service['name'])
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except socket.timeout:
             print()
-            print("Timeout. GW1000 did not respond.")
+            print("Timeout. %s did not respond." % collector.station.model)
         else:
             # did we get any service data
             if len(services_data) > 0:
@@ -5536,13 +5765,14 @@ class DirectGw1000(object):
                     print_fns[service['name']](services_data[service['name']])
             else:
                 print()
-                print("GW1000 did not respond.")
+                print("%s did not respond." % collector.station.model)
 
     def station_mac(self):
-        """Display the GW1000 hardware MAC address.
+        """Display the GW1000/GW1100 hardware MAC address.
 
-        Obtain and display the hardware MAC address of the selected GW1000.
-        GW1000 IP address and port are derived (in order) as follows:
+        Obtain and display the hardware MAC address of the selected
+        GW1000/GW1100. GW1000/GW1100 IP address and port are derived (in order)
+        as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5550,28 +5780,31 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GW1000 Gw1000Collector object
+            # get a GW1000/GW1100 Gw1000Collector object
             collector = Gw1000Collector(ip_address=self.ip_address,
                                         port=self.port)
-            # identify the GW1000 being used
+            # identify the GW1000/GW1100 being used
             print()
-            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                     collector.station.port))
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
             # call the driver objects mac_address() method
             print()
-            print("GW1000 MAC address: %s" % (collector.mac_address,))
+            print("%s MAC address: %s" % (collector.station.model,
+                                          collector.mac_address))
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except socket.timeout:
             print()
-            print("Timeout. GW1000 did not respond.")
+            print("Timeout. %s did not respond." % collector.station.model)
 
     def firmware(self):
-        """Display the firmware version string from a GW1000.
+        """Display the firmware version string from a GW1000/GW1100.
 
         Obtain and display the firmware version string from the selected
-        GW1000. GW1000 IP address and port are derived (in order) as follows:
+        GW1000/GW1100. GW1000/GW1100 IP address and port are derived (in order)
+        as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5582,25 +5815,28 @@ class DirectGw1000(object):
             # get a Gw1000Collector object
             collector = Gw1000Collector(ip_address=self.ip_address,
                                         port=self.port)
-            # identify the GW1000 being used
+            # identify the GW1000/GW1100 being used
             print()
-            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                     collector.station.port))
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
             # call the driver objects firmware_version() method
             print()
-            print("GW1000 firmware version string: %s" % (collector.firmware_version,))
+            print("%s firmware version string: %s" % (collector.station.model,
+                                                      collector.firmware_version))
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except socket.timeout:
             print()
-            print("Timeout. GW1000 did not respond.")
+            print("Timeout. %s did not respond." % collector.station.model)
 
     def sensors(self):
-        """Display the sensor ID information from a GW1000.
+        """Display the sensor ID information from a GW1000/GW1100.
 
-        Obtain and display the sensor ID information from the selected GW1000.
-        GW1000 IP address and port are derived (in order) as follows:
+        Obtain and display the sensor ID information from the selected
+        GW1000/GW1100. GW1000/GW1100 IP address and port are derived (in order)
+        as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5612,18 +5848,19 @@ class DirectGw1000(object):
             collector = Gw1000Collector(ip_address=self.ip_address,
                                         port=self.port,
                                         show_battery=self.show_battery)
-            # identify the GW1000 being used
+            # identify the GW1000/GW1100 being used
             print()
-            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                     collector.station.port))
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
             # first update the collector's sensor ID data
             collector.update_sensor_id_data()
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except socket.timeout:
             print()
-            print("Timeout. GW1000 did not respond.")
+            print("Timeout. %s did not respond." % collector.station.model)
         else:
             # now get the sensors property from the collector
             sensors = collector.sensors
@@ -5653,19 +5890,19 @@ class DirectGw1000(object):
                     print("%-10s %s" % (Gw1000Collector.sensor_ids[address].get('long_name'), state))
             elif len(sensors.data) == 0:
                 print()
-                print("GW1000 did not return any sensor data.")
+                print("%s did not return any sensor data." % collector.station.model)
             else:
                 print()
-                print("GW1000 did not respond.")
+                print("%s did not respond." % collector.station.model)
 
     def live_data(self):
-        """Display live sensor data from a GW1000.
+        """Display live sensor data from a GW1000/GW1100.
 
-        Obtain and display live sensor data from the selected GW1000. Data is
-        presented as read from the GW1000 except for conversion to US customary
-        or Metric units. Unit labels are included.
+        Obtain and display live sensor data from the selected GW1000/GW1100.
+        Data is presented as read from the GW1000/GW1100 except for conversion
+        to US customary or Metric units. Unit labels are included.
 
-        GW1000 IP address and port are derived (in order) as follows:
+        GW1000/GW1100 IP address and port are derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5677,19 +5914,20 @@ class DirectGw1000(object):
             collector = Gw1000Collector(ip_address=self.ip_address,
                                         port=self.port,
                                         show_battery=self.show_battery)
-            # identify the GW1000 being used
+            # identify the GW1000/GW1100 being used
             print()
-            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                     collector.station.port))
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
             # call the driver objects get_live_sensor_data() method to obtain
             # the live sensor data
             live_sensor_data_dict = collector.get_live_sensor_data()
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except socket.timeout:
             print()
-            print("Timeout. GW1000 did not respond.")
+            print("Timeout. %s did not respond." % collector.station.model)
         else:
             # we have a data dict to work with, but we need to format the
             # values and may need to convert units
@@ -5705,12 +5943,12 @@ class DirectGw1000(object):
             # we will use the timestamp separately so pop it from the dict and
             # save for later
             datetime = live_sensor_data_dict.pop('datetime')
-            # extend the WeeWX obs_group_dict with our GW1000 obs_group_dict,
-            # because weewx.units.obs_group_dict.extend is a ListOfDicts we
-            # need to use .prepend since the synthetic python2 ListOfDicts does
-            # not support .update and we want to use the GW1000 entry should
-            # there already be an entry of the same name in
-            # weewx.units.obs_group_dict (eg 'rain')
+            # extend the WeeWX obs_group_dict with our GW1000/GW1100
+            # obs_group_dict, because weewx.units.obs_group_dict.extend is a
+            # ListOfDicts we need to use .prepend since the synthetic python2
+            # ListOfDicts does not support .update and we want to use the
+            # GW1000/GW1100 entry should there already be an entry of the same
+            # name in weewx.units.obs_group_dict (eg 'rain')
             weewx.units.obs_group_dict.prepend(DirectGw1000.gw1000_obs_group_dict)
             # the live data is in MetricWX units, get a suitable converter
             # based on our output units
@@ -5744,48 +5982,49 @@ class DirectGw1000(object):
                 result[key] = key_vh.toString(None_string='None')
             # finally sort our dict by key and print the data
             print()
-            print("GW1000 live sensor data (%s): %s" % (weeutil.weeutil.timestamp_to_string(datetime),
-                                                        weeutil.weeutil.to_sorted_string(result)))
+            print("%s live sensor data (%s): %s" % (collector.station.model,
+                                                    weeutil.weeutil.timestamp_to_string(datetime),
+                                                    weeutil.weeutil.to_sorted_string(result)))
 
     @staticmethod
     def discover():
-        """Display IP address and port data of GW1000s on the local network."""
+        """Display details of GW1000/GW1100 devices on the local network."""
 
+        # this could take a few seconds so warn the user
+        print()
+        print("Discovering devices on the local network. Please wait...")
         # get an Gw1000Collector object
         collector = Gw1000Collector()
+        # Call the Gw1000Collector object discover() method to obtain a list of
+        # unique devices discovered. Would consider wrapping in a try..except
+        # so we can catch any socket timeout exceptions but the
+        # Station.discover() method should catch any such exceptions for us.
+        device_list = collector.station.discover()
         print()
-        # call the Gw1000Collector object discover() method, wrap in a try so we can
-        # catch any socket timeouts
-        try:
-            ip_port_list = collector.station.discover()
-        except socket.timeout:
-            print("Timeout. No GW1000 discovered.")
-        else:
-            if len(ip_port_list) > 0:
-                # we have at least one result
-                # first sort our list by IP address
-                # TODO. Need to sort this list by ip_address
-            #    sorted_list = sorted(ip_port_list, key=itemgetter(0))
-                sorted_list = ip_port_list
-                found = False
-                gw1000_found = 0
-                for device in sorted_list:
-                    if device['ip_address'] is not None and device['port'] is not None:
-                        print("GW1000 discovered at IP address %s on port %d" % (device['ip_address'],
-                                                                                 device['port']))
-                        found = True
-                        gw1000_found += 1
-                else:
-                    if gw1000_found > 1:
-                        print()
-                        print("Multiple GW1000 were found.")
-                        print("If using the GW1000 driver consider explicitly specifying the IP address")
-                        print("and port of the GW1000 to be used under [GW1000] in weewx.conf.")
-                    if not found:
-                        print("No GW1000 was discovered.")
+        if len(device_list) > 0:
+            # we have at least one result
+            # first sort our list by IP address
+            sorted_list = sorted(device_list, key=itemgetter('ip_address'))
+            # initialise a counter to count the number of valid devices found
+            num_gw_found = 0
+            # iterate over the unique devices that were found
+            for device in sorted_list:
+                if device['ip_address'] is not None and device['port'] is not None:
+                    print("%s discovered at IP address %s on port %d" % (device['model'],
+                                                                         device['ip_address'],
+                                                                         device['port']))
+                    num_gw_found += 1
             else:
-                # we have no results
-                print("No GW1000 was discovered.")
+                if num_gw_found > 1:
+                    print()
+                    print("Multiple devices were found.")
+                    print("If using the GW1000/GW1100 driver consider explicitly specifying the ")
+                    print("IP address and port of the device to be used under [GW1000] in weewx.conf.")
+                elif num_gw_found == 0:
+                    print("No devices were discovered.")
+        else:
+            # we have no results
+            print("No devices were discovered.")
 
     @staticmethod
     def field_map():
@@ -5803,8 +6042,8 @@ class DirectGw1000(object):
         # now add in the sensor signal field map
         field_map.update(Gw1000.sensor_signal_field_map)
         print()
-        print("GW1000 driver/service default field map:")
-        print("(format is WeeWX field name: GW1000 field name)")
+        print("GW1000/GW1100 driver/service default field map:")
+        print("(format is WeeWX field name: GW1000/GW1100 field name)")
         print()
         # obtain a list of naturally sorted dict keys so that, for example,
         # xxxxx16 appears in the correct order
@@ -5814,16 +6053,16 @@ class DirectGw1000(object):
             print("    %23s: %s" % (key, field_map[key]))
 
     def test_driver(self):
-        """Run the GW1000 driver.
+        """Run the GW1000/GW1100 driver.
 
-        Exercises the GW1000 driver only. Loop packets, but no archive records,
-        are emitted to the console continuously until a keyboard interrupt is
-        received. A station config dict is coalesced from any relevant command
-        line parameters and the config file in use with command line parameters
-        overriding those in the config file.
+        Exercises the GW1000/GW1100 driver only. Loop packets, but no archive
+        records, are emitted to the console continuously until a keyboard
+        interrupt is received. A station config dict is coalesced from any
+        relevant command line parameters and the config file in use with
+        command line parameters overriding those in the config file.
         """
 
-        loginf("Testing GW1000 driver...")
+        loginf("Testing GW1000/GW1100 driver...")
         # set the IP address and port in the station config dict
         self.stn_dict['ip_address'] = self.ip_address
         self.stn_dict['port'] = self.port
@@ -5837,10 +6076,11 @@ class DirectGw1000(object):
         try:
             # get a Gw1000Driver object
             driver = Gw1000Driver(**self.stn_dict)
-            # identify the GW1000 being used
+            # identify the GW1000/GW1100 being used
             print()
-            print("Interrogating GW1000 at %s:%d" % (driver.collector.station.ip_address.decode(),
-                                                     driver.collector.station.port))
+            print("Interrogating %s at %s:%d" % (driver.collector.station.model,
+                                                 driver.collector.station.ip_address.decode(),
+                                                 driver.collector.station.port))
             print()
             # continuously get loop packets and print them to screen
             for pkt in driver.genLoopPackets():
@@ -5848,25 +6088,25 @@ class DirectGw1000(object):
                                  weeutil.weeutil.to_sorted_string(pkt)]))
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except KeyboardInterrupt:
             # we have a keyboard interrupt so shut down
             driver.closePort()
-        loginf("GW1000 driver testing complete")
+        loginf("GW1000/GW1100 driver testing complete")
 
     def test_service(self):
-        """Test the GW1000 service.
+        """Test the GW1000/GW1100 service.
 
         Uses a dummy engine/simulator to generate arbitrary loop packets for
         augmenting. Use a 10 second loop interval so we don't get too many bare
         packets.
         """
 
-        loginf("Testing GW1000 service...")
+        loginf("Testing GW1000/GW1100 service...")
         # Create a dummy config so we can stand up a dummy engine with a dummy
-        # simulator emitting arbitrary loop packets. Include the GW1000 service
-        # and StdPrint, StdPrint will take care of printing our loop packets
-        # (no StdArchive so loop packets only, no archive records)
+        # simulator emitting arbitrary loop packets. Include the GW1000/GW1100
+        # service  and StdPrint, StdPrint will take care of printing our loop
+        # packets (no StdArchive so loop packets only, no archive records)
         config = {
             'Station': {
                 'station_type': 'Simulator',
@@ -5898,23 +6138,25 @@ class DirectGw1000(object):
         try:
             # create a dummy engine
             engine = weewx.engine.StdEngine(config)
-            # Our GW1000 service will have been instantiated by the engine during
-            # its startup. Whilst access to the service is not normally required we
-            # require access here so we can obtain some info about the station we
-            # are using for this test. The engine does not provide a ready means to
-            # access that GW1000 service so we can do a bit of guessing and iterate
-            # over all of the engine's services and select the one that has a
-            # 'collector' property. Unlikely to cause a problem since there are
-            # only two services in the dummy engine.
-            gw1000_svc = None
+            # Our GW1000/GW1100 service will have been instantiated by the
+            # engine during its startup. Whilst access to the service is not
+            # normally required we require access here so we can obtain some
+            # info about the station we are using for this test. The engine
+            # does not provide a ready means to access that GW1000 service so
+            # we can do a bit of guessing and iterate over all of the engine's
+            # services and select the one that has a 'collector' property.
+            # Unlikely to cause a problem since there are only two services in
+            # the dummy engine.
+            gw_svc = None
             for svc in engine.service_obj:
                 if hasattr(svc, 'collector'):
-                    gw1000_svc = svc
-            if gw1000_svc is not None:
-                # identify the GW1000 being used
+                    gw_svc = svc
+            if gw_svc is not None:
+                # identify the GW1000/GW1100 being used
                 print()
-                print("Interrogating GW1000 at %s:%d" % (gw1000_svc.collector.station.ip_address.decode(),
-                                                         gw1000_svc.collector.station.port))
+                print("Interrogating %s at %s:%d" % (gw_svc.collector.station.model,
+                                                     gw_svc.collector.station.ip_address.decode(),
+                                                     gw_svc.collector.station.port))
             print()
             while True:
                 # create an arbitrary loop packet, all it needs is a timestamp, a
@@ -5924,7 +6166,8 @@ class DirectGw1000(object):
                           'dummyTemp': 96.3
                           }
                 # send out a NEW_LOOP_PACKET event with the dummy loop packet
-                # to trigger the GW1000 service to augment the loop packet
+                # to trigger the GW1000/GW1100 service to augment the loop
+                # packet
                 engine.dispatchEvent(weewx.Event(weewx.NEW_LOOP_PACKET,
                                                  packet=packet,
                                                  origin='software'))
@@ -5932,10 +6175,10 @@ class DirectGw1000(object):
                 time.sleep(10)
         except GW1000IOError as e:
             print()
-            print("Unable to connect to GW1000: %s" % e)
+            print("Unable to connect to device: %s" % e)
         except KeyboardInterrupt:
             engine.shutDown()
-        loginf("GW1000 service testing complete")
+        loginf("GW1000/GW1100 service testing complete")
 
 
 # To use this driver in standalone mode for testing or development, use one of
@@ -6000,63 +6243,63 @@ def main():
 
     parser = optparse.OptionParser(usage=usage)
     parser.add_option('--version', dest='version', action='store_true',
-                      help='display GW1000 driver version number')
+                      help='display GW1000/GW1100 driver version number')
     parser.add_option('--config', dest='config_path', metavar='CONFIG_FILE',
                       help="Use configuration file CONFIG_FILE.")
     parser.add_option('--debug', dest='debug', type=int,
                       help='How much status to display, 0-3')
     parser.add_option('--discover', dest='discover', action='store_true',
-                      help='discover GW1000 and display its IP address '
+                      help='discover GW1000/GW1100 and display its IP address '
                            'and port')
     parser.add_option('--firmware-version', dest='firmware',
                       action='store_true',
-                      help='display GW1000 firmware version')
+                      help='display GW1000/GW1100 firmware version')
     parser.add_option('--mac-address', dest='mac', action='store_true',
-                      help='display GW1000 station MAC address')
+                      help='display GW1000/GW1100 station MAC address')
     parser.add_option('--system-params', dest='sys_params', action='store_true',
-                      help='display GW1000 system parameters')
+                      help='display GW1000/GW1100 system parameters')
     parser.add_option('--sensors', dest='sensors', action='store_true',
-                      help='display GW1000 sensor information')
+                      help='display GW1000/GW1100 sensor information')
     parser.add_option('--live-data', dest='live', action='store_true',
-                      help='display GW1000 live sensor data')
+                      help='display GW1000/GW1100 live sensor data')
     parser.add_option('--get-rain-data', dest='get_rain', action='store_true',
-                      help='display GW1000 rain data')
+                      help='display GW1000/GW1100 rain data')
     parser.add_option('--get-mulch-offset', dest='get_mulch_offset',
                       action='store_true',
-                      help='display GW1000 multi-channel temperature and '
+                      help='display GW1000/GW1100 multi-channel temperature and '
                       'humidity offset data')
     parser.add_option('--get-pm25-offset', dest='get_pm25_offset',
                       action='store_true',
-                      help='display GW1000 PM2.5 offset data')
+                      help='display GW1000/GW1100 PM2.5 offset data')
     parser.add_option('--get-co2-offset', dest='get_co2_offset',
                       action='store_true',
-                      help='display GW1000 CO2 (WH45) offset data')
+                      help='display GW1000/GW1100 CO2 (WH45) offset data')
     parser.add_option('--get-calibration', dest='get_calibration',
                       action='store_true',
-                      help='display GW1000 calibration data')
+                      help='display GW1000/GW1100 calibration data')
     parser.add_option('--get-soil-calibration', dest='get_soil_calibration',
                       action='store_true',
-                      help='display GW1000 soil moisture calibration data')
+                      help='display GW1000/GW1100 soil moisture calibration data')
     parser.add_option('--get-services', dest='get_services',
                       action='store_true',
-                      help='display GW1000 weather services configuration data')
+                      help='display GW1000/GW1100 weather services configuration data')
     parser.add_option('--default-map', dest='map', action='store_true',
                       help='display the default field map')
     parser.add_option('--test-driver', dest='test_driver', action='store_true',
-                      metavar='TEST_DRIVER', help='test the GW1000 driver')
+                      metavar='TEST_DRIVER', help='test the GW1000/GW1100 driver')
     parser.add_option('--test-service', dest='test_service',
                       action='store_true',
-                      metavar='TEST_SERVICE', help='test the GW1000 service')
+                      metavar='TEST_SERVICE', help='test the GW1000/GW1100 service')
     parser.add_option('--ip-address', dest='ip_address',
-                      help='GW1000 IP address to use')
+                      help='GW1000/GW1100 IP address to use')
     parser.add_option('--port', dest='port', type=int,
-                      help='GW1000 port to use')
+                      help='GW1000/GW1100 port to use')
     parser.add_option('--poll-interval', dest='poll_interval', type=int,
-                      help='how often to poll the GW1000 API')
+                      help='how often to poll the GW1000/GW1100 API')
     parser.add_option('--max-tries', dest='max_tries', type=int,
-                      help='max number of attempts to contact the GW1000')
+                      help='max number of attempts to contact the GW1000/GW1100')
     parser.add_option('--retry-wait', dest='retry_wait', type=int,
-                      help='how long to wait between attempts to contact the GW1000')
+                      help='how long to wait between attempts to contact the GW1000/GW1100')
     parser.add_option('--show-all-batt', dest='show_battery',
                       action='store_true',
                       help='show all available battery state data regardless of sensor state')
