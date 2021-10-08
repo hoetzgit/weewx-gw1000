@@ -283,6 +283,22 @@ method):
                 extractor = last
             [[wh31_ch8_batt]]
                 extractor = last
+            [[wh34_ch1_batt]]
+                extractor = last
+            [[wh34_ch2_batt]]
+                extractor = last
+            [[wh34_ch3_batt]]
+                extractor = last
+            [[wh34_ch4_batt]]
+                extractor = last
+            [[wh34_ch5_batt]]
+                extractor = last
+            [[wh34_ch6_batt]]
+                extractor = last
+            [[wh34_ch7_batt]]
+                extractor = last
+            [[wh34_ch8_batt]]
+                extractor = last
             [[wh41_ch1_batt]]
                 extractor = last
             [[wh41_ch2_batt]]
@@ -362,6 +378,22 @@ method):
             [[wh31_ch7_sig]]
                 extractor = last
             [[wh31_ch8_sig]]
+                extractor = last
+            [[wh34_ch1_sig]]
+                extractor = last
+            [[wh34_ch2_sig]]
+                extractor = last
+            [[wh34_ch3_sig]]
+                extractor = last
+            [[wh34_ch4_sig]]
+                extractor = last
+            [[wh34_ch5_sig]]
+                extractor = last
+            [[wh34_ch6_sig]]
+                extractor = last
+            [[wh34_ch7_sig]]
+                extractor = last
+            [[wh34_ch8_sig]]
                 extractor = last
             [[wh41_ch1_sig]]
                 extractor = last
@@ -853,6 +885,14 @@ class Gw1000(object):
         'wh31_ch6_batt': 'wh31_ch6_batt',
         'wh31_ch7_batt': 'wh31_ch7_batt',
         'wh31_ch8_batt': 'wh31_ch8_batt',
+        'wh34_ch1_batt': 'wh34_ch1_batt',
+        'wh34_ch2_batt': 'wh34_ch2_batt',
+        'wh34_ch3_batt': 'wh34_ch3_batt',
+        'wh34_ch4_batt': 'wh34_ch4_batt',
+        'wh34_ch5_batt': 'wh34_ch5_batt',
+        'wh34_ch6_batt': 'wh34_ch6_batt',
+        'wh34_ch7_batt': 'wh34_ch7_batt',
+        'wh34_ch8_batt': 'wh34_ch8_batt',
         'wh35_ch1_batt': 'wh35_ch1_batt',
         'wh35_ch2_batt': 'wh35_ch2_batt',
         'wh35_ch3_batt': 'wh35_ch3_batt',
@@ -906,6 +946,14 @@ class Gw1000(object):
         'wh31_ch6_sig': 'wh31_ch6_sig',
         'wh31_ch7_sig': 'wh31_ch7_sig',
         'wh31_ch8_sig': 'wh31_ch8_sig',
+        'wh34_ch1_sig': 'wh34_ch1_sig',
+        'wh34_ch2_sig': 'wh34_ch2_sig',
+        'wh34_ch3_sig': 'wh34_ch3_sig',
+        'wh34_ch4_sig': 'wh34_ch4_sig',
+        'wh34_ch5_sig': 'wh34_ch5_sig',
+        'wh34_ch6_sig': 'wh34_ch6_sig',
+        'wh34_ch7_sig': 'wh34_ch7_sig',
+        'wh34_ch8_sig': 'wh34_ch8_sig',
         'wh35_ch1_sig': 'wh35_ch1_sig',
         'wh35_ch2_sig': 'wh35_ch2_sig',
         'wh35_ch3_sig': 'wh35_ch3_sig',
@@ -1785,6 +1833,22 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[wh31_ch8_batt]]
             extractor = last
+        [[wh34_ch1_batt]]
+            extractor = last
+        [[wh34_ch2_batt]]
+            extractor = last
+        [[wh34_ch3_batt]]
+            extractor = last
+        [[wh34_ch4_batt]]
+            extractor = last
+        [[wh34_ch5_batt]]
+            extractor = last
+        [[wh34_ch6_batt]]
+            extractor = last
+        [[wh34_ch7_batt]]
+            extractor = last
+        [[wh34_ch8_batt]]
+            extractor = last
         [[wh35_ch1_batt]]
             extractor = last
         [[wh35_ch2_batt]]
@@ -1880,6 +1944,22 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         [[wh31_ch7_sig]]
             extractor = last
         [[wh31_ch8_sig]]
+            extractor = last
+        [[wh34_ch1_sig]]
+            extractor = last
+        [[wh34_ch2_sig]]
+            extractor = last
+        [[wh34_ch3_sig]]
+            extractor = last
+        [[wh34_ch4_sig]]
+            extractor = last
+        [[wh34_ch5_sig]]
+            extractor = last
+        [[wh34_ch6_sig]]
+            extractor = last
+        [[wh34_ch7_sig]]
+            extractor = last
+        [[wh34_ch8_sig]]
             extractor = last
         [[wh35_ch1_sig]]
             extractor = last
