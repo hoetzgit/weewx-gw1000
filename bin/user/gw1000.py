@@ -30,9 +30,19 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.4.0                                      Date: 27 September 2021
+Version: 0.4.1                                      Date: 9 October 2021
 
 Revision History
+    9 October 2021          v0.4.1
+        -   renamed WH34 (from API documentation) to WN34L/WN34S (actual
+            hardware nomenclature)
+        -   To deconflict with the release of the WN34S the GW1000 driver soil
+            temperature fields have been changed to tempxx fields, default
+            field map now maps to WeeWX extraTempxx fields. This should not
+            cause issues for users as Ecowitt has not released publicly any
+            sensors that populate the GW1000 soil temperature fields. Refer to
+            GW1000 driver wiki Upgrade Guide for further details.
+        -   fixed some issue with WN34S/WN34L signal and battery state fields
     27 September 2021       v0.4.0
         -   the device model (GW1000/GW1100) is now identified via the API so
             many references to 'GW1000' in console and log output should now be
