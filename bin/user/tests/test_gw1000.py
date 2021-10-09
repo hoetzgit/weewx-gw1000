@@ -158,37 +158,37 @@ class ParseTestCase(unittest.TestCase):
         b'\x28': ('decode_humid', 1, 'humid7'),
         b'\x29': ('decode_humid', 1, 'humid8'),
         b'\x2A': ('decode_pm25', 2, 'pm251'),
-        b'\x2B': ('decode_temp', 2, 'soiltemp1'),
+        b'\x2B': ('decode_temp', 2, 'temp18'),
         b'\x2C': ('decode_moist', 1, 'soilmoist1'),
-        b'\x2D': ('decode_temp', 2, 'soiltemp2'),
+        b'\x2D': ('decode_temp', 2, 'temp19'),
         b'\x2E': ('decode_moist', 1, 'soilmoist2'),
-        b'\x2F': ('decode_temp', 2, 'soiltemp3'),
+        b'\x2F': ('decode_temp', 2, 'temp20'),
         b'\x30': ('decode_moist', 1, 'soilmoist3'),
-        b'\x31': ('decode_temp', 2, 'soiltemp4'),
+        b'\x31': ('decode_temp', 2, 'temp21'),
         b'\x32': ('decode_moist', 1, 'soilmoist4'),
-        b'\x33': ('decode_temp', 2, 'soiltemp5'),
+        b'\x33': ('decode_temp', 2, 'temp22'),
         b'\x34': ('decode_moist', 1, 'soilmoist5'),
-        b'\x35': ('decode_temp', 2, 'soiltemp6'),
+        b'\x35': ('decode_temp', 2, 'temp23'),
         b'\x36': ('decode_moist', 1, 'soilmoist6'),
-        b'\x37': ('decode_temp', 2, 'soiltemp7'),
+        b'\x37': ('decode_temp', 2, 'temp24'),
         b'\x38': ('decode_moist', 1, 'soilmoist7'),
-        b'\x39': ('decode_temp', 2, 'soiltemp8'),
+        b'\x39': ('decode_temp', 2, 'temp25'),
         b'\x3A': ('decode_moist', 1, 'soilmoist8'),
-        b'\x3B': ('decode_temp', 2, 'soiltemp9'),
+        b'\x3B': ('decode_temp', 2, 'temp26'),
         b'\x3C': ('decode_moist', 1, 'soilmoist9'),
-        b'\x3D': ('decode_temp', 2, 'soiltemp10'),
+        b'\x3D': ('decode_temp', 2, 'temp27'),
         b'\x3E': ('decode_moist', 1, 'soilmoist10'),
-        b'\x3F': ('decode_temp', 2, 'soiltemp11'),
+        b'\x3F': ('decode_temp', 2, 'temp28'),
         b'\x40': ('decode_moist', 1, 'soilmoist11'),
-        b'\x41': ('decode_temp', 2, 'soiltemp12'),
+        b'\x41': ('decode_temp', 2, 'temp29'),
         b'\x42': ('decode_moist', 1, 'soilmoist12'),
-        b'\x43': ('decode_temp', 2, 'soiltemp13'),
+        b'\x43': ('decode_temp', 2, 'temp30'),
         b'\x44': ('decode_moist', 1, 'soilmoist13'),
-        b'\x45': ('decode_temp', 2, 'soiltemp14'),
+        b'\x45': ('decode_temp', 2, 'temp31'),
         b'\x46': ('decode_moist', 1, 'soilmoist14'),
-        b'\x47': ('decode_temp', 2, 'soiltemp15'),
+        b'\x47': ('decode_temp', 2, 'temp32'),
         b'\x48': ('decode_moist', 1, 'soilmoist15'),
-        b'\x49': ('decode_temp', 2, 'soiltemp16'),
+        b'\x49': ('decode_temp', 2, 'temp33'),
         b'\x4A': ('decode_moist', 1, 'soilmoist16'),
         b'\x4C': ('decode_batt', 16, 'lowbatt'),
         b'\x4D': ('decode_pm25', 2, 'pm251_24h_avg'),
@@ -205,16 +205,16 @@ class ParseTestCase(unittest.TestCase):
         b'\x60': ('decode_distance', 1, 'lightningdist'),
         b'\x61': ('decode_utc', 4, 'lightningdettime'),
         b'\x62': ('decode_count', 4, 'lightningcount'),
-        # WH34 battery data is not obtained from live data rather it is
+        # WN34L/WN34S battery data is not obtained from live data rather it is
         # obtained from sensor ID data
-        b'\x63': ('decode_wh34', 3, 'temp9'),
-        b'\x64': ('decode_wh34', 3, 'temp10'),
-        b'\x65': ('decode_wh34', 3, 'temp11'),
-        b'\x66': ('decode_wh34', 3, 'temp12'),
-        b'\x67': ('decode_wh34', 3, 'temp13'),
-        b'\x68': ('decode_wh34', 3, 'temp14'),
-        b'\x69': ('decode_wh34', 3, 'temp15'),
-        b'\x6A': ('decode_wh34', 3, 'temp16'),
+        b'\x63': ('decode_wn34ls', 3, 'temp9'),
+        b'\x64': ('decode_wn34ls', 3, 'temp10'),
+        b'\x65': ('decode_wn34ls', 3, 'temp11'),
+        b'\x66': ('decode_wn34ls', 3, 'temp12'),
+        b'\x67': ('decode_wn34ls', 3, 'temp13'),
+        b'\x68': ('decode_wn34ls', 3, 'temp14'),
+        b'\x69': ('decode_wn34ls', 3, 'temp15'),
+        b'\x6A': ('decode_wn34ls', 3, 'temp16'),
         b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
                                       'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
                                       'co2', 'co2_24h_avg')),
@@ -270,10 +270,10 @@ class ParseTestCase(unittest.TestCase):
     distance_data = {'hex': '1A', 'value': 26}
     utc_data = {'hex': '5F 40 72 51', 'value': 1598059089}
     count_data = {'hex': '00 40 72 51', 'value': 4223569}
-    wh34_data = {'hex': '00 EA 4D',
-                 'field': 't',
-                 'value': {'t': 23.4}
-                 }
+    wn34ls_data = {'hex': '00 EA 4D',
+                   'field': 't',
+                   'value': {'t': 23.4}
+                   }
     wh45_data = {'hex': '00 EA 4D 35 6D 28 78 34 3D 62 7E 8D 2A 39 9F 04',
                  'field': ('t', 'h', 'p10', 'p10_24', 'p25', 'p25_24', 'c', 'c_24'),
                  'value': {'t': 23.4, 'h': 77, 'p10': 1367.7, 'p10_24': 1036.0,
@@ -439,18 +439,18 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(2))), None)
 
-        # test wh34 decode (method decode_pm10())
+        # test ? decode (method decode_pm10())
         pass
 
-        # test wh34 decode (method decode_co2())
+        # test ? decode (method decode_co2())
         pass
 
-        # test wh34 decode (method decode_wh34())
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(self.wh34_data['hex']), field=self.wh34_data['field']),
-                         self.wh34_data['value'])
+        # test WN34L/WN34S decode (method decode_wn34ls())
+        self.assertEqual(self.parser.decode_wn34ls(hex_to_bytes(self.wn34ls_data['hex']), field=self.wn34ls_data['field']),
+                         self.wn34ls_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(1)), field=self.wh34_data['field']), {})
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(4)), field=self.wh34_data['field']), {})
+        self.assertEqual(self.parser.decode_wn34ls(hex_to_bytes(xbytes(1)), field=self.wn34ls_data['field']), {})
+        self.assertEqual(self.parser.decode_wn34ls(hex_to_bytes(xbytes(4)), field=self.wn34ls_data['field']), {})
 
         # test wh45 decode (method decode_wh45())
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(self.wh45_data['hex']), fields=self.wh45_data['field']),

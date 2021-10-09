@@ -283,21 +283,21 @@ method):
                 extractor = last
             [[wh31_ch8_batt]]
                 extractor = last
-            [[wh34_ch1_batt]]
+            [[wn34ls_ch1_batt]]
                 extractor = last
-            [[wh34_ch2_batt]]
+            [[wn34ls_ch2_batt]]
                 extractor = last
-            [[wh34_ch3_batt]]
+            [[wn34ls_ch3_batt]]
                 extractor = last
-            [[wh34_ch4_batt]]
+            [[wn34ls_ch4_batt]]
                 extractor = last
-            [[wh34_ch5_batt]]
+            [[wn34ls_ch5_batt]]
                 extractor = last
-            [[wh34_ch6_batt]]
+            [[wn34ls_ch6_batt]]
                 extractor = last
-            [[wh34_ch7_batt]]
+            [[wn34ls_ch7_batt]]
                 extractor = last
-            [[wh34_ch8_batt]]
+            [[wn34ls_ch8_batt]]
                 extractor = last
             [[wh41_ch1_batt]]
                 extractor = last
@@ -379,21 +379,21 @@ method):
                 extractor = last
             [[wh31_ch8_sig]]
                 extractor = last
-            [[wh34_ch1_sig]]
+            [[wn34ls_ch1_sig]]
                 extractor = last
-            [[wh34_ch2_sig]]
+            [[wn34ls_ch2_sig]]
                 extractor = last
-            [[wh34_ch3_sig]]
+            [[wn34ls_ch3_sig]]
                 extractor = last
-            [[wh34_ch4_sig]]
+            [[wn34ls_ch4_sig]]
                 extractor = last
-            [[wh34_ch5_sig]]
+            [[wn34ls_ch5_sig]]
                 extractor = last
-            [[wh34_ch6_sig]]
+            [[wn34ls_ch6_sig]]
                 extractor = last
-            [[wh34_ch7_sig]]
+            [[wn34ls_ch7_sig]]
                 extractor = last
-            [[wh34_ch8_sig]]
+            [[wn34ls_ch8_sig]]
                 extractor = last
             [[wh41_ch1_sig]]
                 extractor = last
@@ -767,6 +767,22 @@ class Gw1000(object):
         'extraTemp15': 'temp15',
         'extraTemp16': 'temp16',
         'extraTemp17': 'temp17',
+        'extraTemp18': 'temp18',
+        'extraTemp19': 'temp19',
+        'extraTemp20': 'temp20',
+        'extraTemp21': 'temp21',
+        'extraTemp22': 'temp22',
+        'extraTemp23': 'temp23',
+        'extraTemp24': 'temp24',
+        'extraTemp25': 'temp25',
+        'extraTemp26': 'temp26',
+        'extraTemp27': 'temp27',
+        'extraTemp28': 'temp28',
+        'extraTemp29': 'temp29',
+        'extraTemp30': 'temp30',
+        'extraTemp31': 'temp31',
+        'extraTemp32': 'temp32',
+        'extraTemp33': 'temp33',
         'extraHumid1': 'humid1',
         'extraHumid2': 'humid2',
         'extraHumid3': 'humid3',
@@ -791,37 +807,21 @@ class Gw1000(object):
         'pm2_55': 'pm255',
         'pm10': 'pm10',
         'co2': 'co2',
-        'soilTemp1': 'soiltemp1',
         'soilMoist1': 'soilmoist1',
-        'soilTemp2': 'soiltemp2',
         'soilMoist2': 'soilmoist2',
-        'soilTemp3': 'soiltemp3',
         'soilMoist3': 'soilmoist3',
-        'soilTemp4': 'soiltemp4',
         'soilMoist4': 'soilmoist4',
-        'soilTemp5': 'soiltemp5',
         'soilMoist5': 'soilmoist5',
-        'soilTemp6': 'soiltemp6',
         'soilMoist6': 'soilmoist6',
-        'soilTemp7': 'soiltemp7',
         'soilMoist7': 'soilmoist7',
-        'soilTemp8': 'soiltemp8',
         'soilMoist8': 'soilmoist8',
-        'soilTemp9': 'soiltemp9',
         'soilMoist9': 'soilmoist9',
-        'soilTemp10': 'soiltemp10',
         'soilMoist10': 'soilmoist10',
-        'soilTemp11': 'soiltemp11',
         'soilMoist11': 'soilmoist11',
-        'soilTemp12': 'soiltemp12',
         'soilMoist12': 'soilmoist12',
-        'soilTemp13': 'soiltemp13',
         'soilMoist13': 'soilmoist13',
-        'soilTemp14': 'soiltemp14',
         'soilMoist14': 'soilmoist14',
-        'soilTemp15': 'soiltemp15',
         'soilMoist15': 'soilmoist15',
-        'soilTemp16': 'soiltemp16',
         'soilMoist16': 'soilmoist16',
         'pm2_51_24h_avg': 'pm251_24h_avg',
         'pm2_52_24h_avg': 'pm252_24h_avg',
@@ -885,14 +885,14 @@ class Gw1000(object):
         'wh31_ch6_batt': 'wh31_ch6_batt',
         'wh31_ch7_batt': 'wh31_ch7_batt',
         'wh31_ch8_batt': 'wh31_ch8_batt',
-        'wh34_ch1_batt': 'wh34_ch1_batt',
-        'wh34_ch2_batt': 'wh34_ch2_batt',
-        'wh34_ch3_batt': 'wh34_ch3_batt',
-        'wh34_ch4_batt': 'wh34_ch4_batt',
-        'wh34_ch5_batt': 'wh34_ch5_batt',
-        'wh34_ch6_batt': 'wh34_ch6_batt',
-        'wh34_ch7_batt': 'wh34_ch7_batt',
-        'wh34_ch8_batt': 'wh34_ch8_batt',
+        'wn34ls_ch1_batt': 'wn34ls_ch1_batt',
+        'wn34ls_ch2_batt': 'wn34ls_ch2_batt',
+        'wn34ls_ch3_batt': 'wn34ls_ch3_batt',
+        'wn34ls_ch4_batt': 'wn34ls_ch4_batt',
+        'wn34ls_ch5_batt': 'wn34ls_ch5_batt',
+        'wn34ls_ch6_batt': 'wn34ls_ch6_batt',
+        'wn34ls_ch7_batt': 'wn34ls_ch7_batt',
+        'wn34ls_ch8_batt': 'wn34ls_ch8_batt',
         'wh35_ch1_batt': 'wh35_ch1_batt',
         'wh35_ch2_batt': 'wh35_ch2_batt',
         'wh35_ch3_batt': 'wh35_ch3_batt',
@@ -946,14 +946,14 @@ class Gw1000(object):
         'wh31_ch6_sig': 'wh31_ch6_sig',
         'wh31_ch7_sig': 'wh31_ch7_sig',
         'wh31_ch8_sig': 'wh31_ch8_sig',
-        'wh34_ch1_sig': 'wh34_ch1_sig',
-        'wh34_ch2_sig': 'wh34_ch2_sig',
-        'wh34_ch3_sig': 'wh34_ch3_sig',
-        'wh34_ch4_sig': 'wh34_ch4_sig',
-        'wh34_ch5_sig': 'wh34_ch5_sig',
-        'wh34_ch6_sig': 'wh34_ch6_sig',
-        'wh34_ch7_sig': 'wh34_ch7_sig',
-        'wh34_ch8_sig': 'wh34_ch8_sig',
+        'wn34ls_ch1_sig': 'wn34ls_ch1_sig',
+        'wn34ls_ch2_sig': 'wn34ls_ch2_sig',
+        'wn34ls_ch3_sig': 'wn34ls_ch3_sig',
+        'wn34ls_ch4_sig': 'wn34ls_ch4_sig',
+        'wn34ls_ch5_sig': 'wn34ls_ch5_sig',
+        'wn34ls_ch6_sig': 'wn34ls_ch6_sig',
+        'wn34ls_ch7_sig': 'wn34ls_ch7_sig',
+        'wn34ls_ch8_sig': 'wn34ls_ch8_sig',
         'wh35_ch1_sig': 'wh35_ch1_sig',
         'wh35_ch2_sig': 'wh35_ch2_sig',
         'wh35_ch3_sig': 'wh35_ch3_sig',
@@ -1833,21 +1833,21 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[wh31_ch8_batt]]
             extractor = last
-        [[wh34_ch1_batt]]
+        [[wn34ls_ch1_batt]]
             extractor = last
-        [[wh34_ch2_batt]]
+        [[wn34ls_ch2_batt]]
             extractor = last
-        [[wh34_ch3_batt]]
+        [[wn34ls_ch3_batt]]
             extractor = last
-        [[wh34_ch4_batt]]
+        [[wn34ls_ch4_batt]]
             extractor = last
-        [[wh34_ch5_batt]]
+        [[wn34ls_ch5_batt]]
             extractor = last
-        [[wh34_ch6_batt]]
+        [[wn34ls_ch6_batt]]
             extractor = last
-        [[wh34_ch7_batt]]
+        [[wn34ls_ch7_batt]]
             extractor = last
-        [[wh34_ch8_batt]]
+        [[wn34ls_ch8_batt]]
             extractor = last
         [[wh35_ch1_batt]]
             extractor = last
@@ -1945,21 +1945,21 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[wh31_ch8_sig]]
             extractor = last
-        [[wh34_ch1_sig]]
+        [[wn34ls_ch1_sig]]
             extractor = last
-        [[wh34_ch2_sig]]
+        [[wn34ls_ch2_sig]]
             extractor = last
-        [[wh34_ch3_sig]]
+        [[wn34ls_ch3_sig]]
             extractor = last
-        [[wh34_ch4_sig]]
+        [[wn34ls_ch4_sig]]
             extractor = last
-        [[wh34_ch5_sig]]
+        [[wn34ls_ch5_sig]]
             extractor = last
-        [[wh34_ch6_sig]]
+        [[wn34ls_ch6_sig]]
             extractor = last
-        [[wh34_ch7_sig]]
+        [[wn34ls_ch7_sig]]
             extractor = last
-        [[wh34_ch8_sig]]
+        [[wn34ls_ch8_sig]]
             extractor = last
         [[wh35_ch1_sig]]
             extractor = last
@@ -2443,14 +2443,14 @@ class Gw1000Collector(Collector):
         b'\x1c': {'name': 'wh55_ch2', 'long_name': 'WH55 ch2', 'batt_fn': 'batt_int'},
         b'\x1d': {'name': 'wh55_ch3', 'long_name': 'WH55 ch3', 'batt_fn': 'batt_int'},
         b'\x1e': {'name': 'wh55_ch4', 'long_name': 'WH55 ch4', 'batt_fn': 'batt_int'},
-        b'\x1f': {'name': 'wh34_ch1', 'long_name': 'WH34 ch1', 'batt_fn': 'batt_volt'},
-        b'\x20': {'name': 'wh34_ch2', 'long_name': 'WH34 ch2', 'batt_fn': 'batt_volt'},
-        b'\x21': {'name': 'wh34_ch3', 'long_name': 'WH34 ch3', 'batt_fn': 'batt_volt'},
-        b'\x22': {'name': 'wh34_ch4', 'long_name': 'WH34 ch4', 'batt_fn': 'batt_volt'},
-        b'\x23': {'name': 'wh34_ch5', 'long_name': 'WH34 ch5', 'batt_fn': 'batt_volt'},
-        b'\x24': {'name': 'wh34_ch6', 'long_name': 'WH34 ch6', 'batt_fn': 'batt_volt'},
-        b'\x25': {'name': 'wh34_ch7', 'long_name': 'WH34 ch7', 'batt_fn': 'batt_volt'},
-        b'\x26': {'name': 'wh34_ch8', 'long_name': 'WH34 ch8', 'batt_fn': 'batt_volt'},
+        b'\x1f': {'name': 'wn34ls_ch1', 'long_name': 'WN34L/WN34S ch1', 'batt_fn': 'batt_volt'},
+        b'\x20': {'name': 'wn34ls_ch2', 'long_name': 'WN34L/WN34S ch2', 'batt_fn': 'batt_volt'},
+        b'\x21': {'name': 'wn34ls_ch3', 'long_name': 'WN34L/WN34S ch3', 'batt_fn': 'batt_volt'},
+        b'\x22': {'name': 'wn34ls_ch4', 'long_name': 'WN34L/WN34S ch4', 'batt_fn': 'batt_volt'},
+        b'\x23': {'name': 'wn34ls_ch5', 'long_name': 'WN34L/WN34S ch5', 'batt_fn': 'batt_volt'},
+        b'\x24': {'name': 'wn34ls_ch6', 'long_name': 'WN34L/WN34S ch6', 'batt_fn': 'batt_volt'},
+        b'\x25': {'name': 'wn34ls_ch7', 'long_name': 'WN34L/WN34S ch7', 'batt_fn': 'batt_volt'},
+        b'\x26': {'name': 'wn34ls_ch8', 'long_name': 'WN34L/WN34S ch8', 'batt_fn': 'batt_volt'},
         b'\x27': {'name': 'wh45', 'long_name': 'WH45', 'batt_fn': 'batt_int'},
         b'\x28': {'name': 'wh35_ch1', 'long_name': 'WH35 ch1', 'batt_fn': 'batt_volt'},
         b'\x29': {'name': 'wh35_ch2', 'long_name': 'WH35 ch2', 'batt_fn': 'batt_volt'},
@@ -4113,37 +4113,37 @@ class Gw1000Collector(Collector):
             b'\x28': ('decode_humid', 1, 'humid7'),
             b'\x29': ('decode_humid', 1, 'humid8'),
             b'\x2A': ('decode_pm25', 2, 'pm251'),
-            b'\x2B': ('decode_temp', 2, 'soiltemp1'),
+            b'\x2B': ('decode_temp', 2, 'temp18'),
             b'\x2C': ('decode_moist', 1, 'soilmoist1'),
-            b'\x2D': ('decode_temp', 2, 'soiltemp2'),
+            b'\x2D': ('decode_temp', 2, 'temp19'),
             b'\x2E': ('decode_moist', 1, 'soilmoist2'),
-            b'\x2F': ('decode_temp', 2, 'soiltemp3'),
+            b'\x2F': ('decode_temp', 2, 'temp20'),
             b'\x30': ('decode_moist', 1, 'soilmoist3'),
-            b'\x31': ('decode_temp', 2, 'soiltemp4'),
+            b'\x31': ('decode_temp', 2, 'temp21'),
             b'\x32': ('decode_moist', 1, 'soilmoist4'),
-            b'\x33': ('decode_temp', 2, 'soiltemp5'),
+            b'\x33': ('decode_temp', 2, 'temp22'),
             b'\x34': ('decode_moist', 1, 'soilmoist5'),
-            b'\x35': ('decode_temp', 2, 'soiltemp6'),
+            b'\x35': ('decode_temp', 2, 'temp23'),
             b'\x36': ('decode_moist', 1, 'soilmoist6'),
-            b'\x37': ('decode_temp', 2, 'soiltemp7'),
+            b'\x37': ('decode_temp', 2, 'temp24'),
             b'\x38': ('decode_moist', 1, 'soilmoist7'),
-            b'\x39': ('decode_temp', 2, 'soiltemp8'),
+            b'\x39': ('decode_temp', 2, 'temp25'),
             b'\x3A': ('decode_moist', 1, 'soilmoist8'),
-            b'\x3B': ('decode_temp', 2, 'soiltemp9'),
+            b'\x3B': ('decode_temp', 2, 'temp26'),
             b'\x3C': ('decode_moist', 1, 'soilmoist9'),
-            b'\x3D': ('decode_temp', 2, 'soiltemp10'),
+            b'\x3D': ('decode_temp', 2, 'temp27'),
             b'\x3E': ('decode_moist', 1, 'soilmoist10'),
-            b'\x3F': ('decode_temp', 2, 'soiltemp11'),
+            b'\x3F': ('decode_temp', 2, 'temp28'),
             b'\x40': ('decode_moist', 1, 'soilmoist11'),
-            b'\x41': ('decode_temp', 2, 'soiltemp12'),
+            b'\x41': ('decode_temp', 2, 'temp29'),
             b'\x42': ('decode_moist', 1, 'soilmoist12'),
-            b'\x43': ('decode_temp', 2, 'soiltemp13'),
+            b'\x43': ('decode_temp', 2, 'temp30'),
             b'\x44': ('decode_moist', 1, 'soilmoist13'),
-            b'\x45': ('decode_temp', 2, 'soiltemp14'),
+            b'\x45': ('decode_temp', 2, 'temp31'),
             b'\x46': ('decode_moist', 1, 'soilmoist14'),
-            b'\x47': ('decode_temp', 2, 'soiltemp15'),
+            b'\x47': ('decode_temp', 2, 'temp32'),
             b'\x48': ('decode_moist', 1, 'soilmoist15'),
-            b'\x49': ('decode_temp', 2, 'soiltemp16'),
+            b'\x49': ('decode_temp', 2, 'temp33'),
             b'\x4A': ('decode_moist', 1, 'soilmoist16'),
             b'\x4C': ('decode_batt', 16, 'lowbatt'),
             b'\x4D': ('decode_pm25', 2, 'pm251_24h_avg'),
@@ -4160,16 +4160,16 @@ class Gw1000Collector(Collector):
             b'\x60': ('decode_distance', 1, 'lightningdist'),
             b'\x61': ('decode_utc', 4, 'lightningdettime'),
             b'\x62': ('decode_count', 4, 'lightningcount'),
-            # WH34 battery data is not obtained from live data rather it is
-            # obtained from sensor ID data
-            b'\x63': ('decode_wh34', 3, 'temp9'),
-            b'\x64': ('decode_wh34', 3, 'temp10'),
-            b'\x65': ('decode_wh34', 3, 'temp11'),
-            b'\x66': ('decode_wh34', 3, 'temp12'),
-            b'\x67': ('decode_wh34', 3, 'temp13'),
-            b'\x68': ('decode_wh34', 3, 'temp14'),
-            b'\x69': ('decode_wh34', 3, 'temp15'),
-            b'\x6A': ('decode_wh34', 3, 'temp16'),
+            # WN34L/WN34S battery data is not obtained from live data rather it 
+            # is obtained from sensor ID data
+            b'\x63': ('decode_wn34ls', 3, 'temp9'),
+            b'\x64': ('decode_wn34ls', 3, 'temp10'),
+            b'\x65': ('decode_wn34ls', 3, 'temp11'),
+            b'\x66': ('decode_wn34ls', 3, 'temp12'),
+            b'\x67': ('decode_wn34ls', 3, 'temp13'),
+            b'\x68': ('decode_wn34ls', 3, 'temp14'),
+            b'\x69': ('decode_wn34ls', 3, 'temp15'),
+            b'\x6A': ('decode_wn34ls', 3, 'temp16'),
             # WH45 battery data is not obtained from live data rather it is
             # obtained from sensor ID data
             b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
@@ -4464,8 +4464,8 @@ class Gw1000Collector(Collector):
         decode_co2 = decode_dir
         decode_wet = decode_humid
 
-        def decode_wh34(self, data, field=None):
-            """Decode WH34 sensor data.
+        def decode_wn34ls(self, data, field=None):
+            """Decode WN34L/WN34S sensor data.
 
             Data consists of three bytes:
 
@@ -4930,6 +4930,22 @@ class DirectGw1000(object):
         'temp15': 'group_temperature',
         'temp16': 'group_temperature',
         'temp17': 'group_temperature',
+        'temp18': 'group_temperature',
+        'temp19': 'group_temperature',
+        'temp20': 'group_temperature',
+        'temp21': 'group_temperature',
+        'temp22': 'group_temperature',
+        'temp23': 'group_temperature',
+        'temp24': 'group_temperature',
+        'temp25': 'group_temperature',
+        'temp26': 'group_temperature',
+        'temp27': 'group_temperature',
+        'temp28': 'group_temperature',
+        'temp29': 'group_temperature',
+        'temp30': 'group_temperature',
+        'temp31': 'group_temperature',
+        'temp32': 'group_temperature',
+        'temp33': 'group_temperature',
         'humid1': 'group_percent',
         'humid2': 'group_percent',
         'humid3': 'group_percent',
@@ -4946,37 +4962,21 @@ class DirectGw1000(object):
         'pm255': 'group_concentration',
         'pm10': 'group_concentration',
         'co2': 'group_fraction',
-        'soiltemp1': 'group_temperature',
         'soilmoist1': 'group_percent',
-        'soiltemp2': 'group_temperature',
         'soilmoist2': 'group_percent',
-        'soiltemp3': 'group_temperature',
         'soilmoist3': 'group_percent',
-        'soiltemp4': 'group_temperature',
         'soilmoist4': 'group_percent',
-        'soiltemp5': 'group_temperature',
         'soilmoist5': 'group_percent',
-        'soiltemp6': 'group_temperature',
         'soilmoist6': 'group_percent',
-        'soiltemp7': 'group_temperature',
         'soilmoist7': 'group_percent',
-        'soiltemp8': 'group_temperature',
         'soilmoist8': 'group_percent',
-        'soiltemp9': 'group_temperature',
         'soilmoist9': 'group_percent',
-        'soiltemp10': 'group_temperature',
         'soilmoist10': 'group_percent',
-        'soiltemp11': 'group_temperature',
         'soilmoist11': 'group_percent',
-        'soiltemp12': 'group_temperature',
         'soilmoist12': 'group_percent',
-        'soiltemp13': 'group_temperature',
         'soilmoist13': 'group_percent',
-        'soiltemp14': 'group_temperature',
         'soilmoist14': 'group_percent',
-        'soiltemp15': 'group_temperature',
         'soilmoist15': 'group_percent',
-        'soiltemp16': 'group_temperature',
         'soilmoist16': 'group_percent',
         'pm251_24h_avg': 'group_concentration',
         'pm252_24h_avg': 'group_concentration',
@@ -5027,6 +5027,14 @@ class DirectGw1000(object):
         'wh31_ch6_batt': 'group_count',
         'wh31_ch7_batt': 'group_count',
         'wh31_ch8_batt': 'group_count',
+        'wn34ls_ch1_batt': 'group_count',
+        'wn34ls_ch2_batt': 'group_count',
+        'wn34ls_ch3_batt': 'group_count',
+        'wn34ls_ch4_batt': 'group_count',
+        'wn34ls_ch5_batt': 'group_count',
+        'wn34ls_ch6_batt': 'group_count',
+        'wn34ls_ch7_batt': 'group_count',
+        'wn34ls_ch8_batt': 'group_count',
         'wh35_ch1_batt': 'group_count',
         'wh35_ch2_batt': 'group_count',
         'wh35_ch3_batt': 'group_count',
@@ -5076,6 +5084,14 @@ class DirectGw1000(object):
         'wh31_ch6_sig': 'group_count',
         'wh31_ch7_sig': 'group_count',
         'wh31_ch8_sig': 'group_count',
+        'wn34ls_ch1_sig': 'group_count',
+        'wn34ls_ch2_sig': 'group_count',
+        'wn34ls_ch3_sig': 'group_count',
+        'wn34ls_ch4_sig': 'group_count',
+        'wn34ls_ch5_sig': 'group_count',
+        'wn34ls_ch6_sig': 'group_count',
+        'wn34ls_ch7_sig': 'group_count',
+        'wn34ls_ch8_sig': 'group_count',
         'wh35_ch1_sig': 'group_count',
         'wh35_ch2_sig': 'group_count',
         'wh35_ch3_sig': 'group_count',
@@ -5885,7 +5901,7 @@ class DirectGw1000(object):
             if sensors.data is not None and len(sensors.data) > 0:
                 # now format and display the data
                 print()
-                print("%-10s %s" % ("Sensor", "Status"))
+                print("%-17s %s" % ("Sensor", "Status"))
                 # iterate over each sensor for which we have data
                 for address, sensor_data in six.iteritems(sensors.data):
                     # the sensor id indicates whether it is disabled, attempting to
@@ -5903,7 +5919,7 @@ class DirectGw1000(object):
                                                                             sensor_data.get('signal'),
                                                                             battery_str)
                         # print the formatted data
-                    print("%-10s %s" % (Gw1000Collector.sensor_ids[address].get('long_name'), state))
+                    print("%-17s %s" % (Gw1000Collector.sensor_ids[address].get('long_name'), state))
             elif len(sensors.data) == 0:
                 print()
                 print("%s did not return any sensor data." % collector.station.model)
