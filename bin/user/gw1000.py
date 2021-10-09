@@ -125,6 +125,22 @@ Revision History
         - initial release
 
 
+This driver release supports the following senors:
+
+    -   one WH24 or WH32
+    -   one WH25
+    -   one WH26
+    -   up to a total of 8 WH31 or WN30 in any mix
+    -   up to a total of 8 WN34L or WN34S in any mix
+    -   up to a total of 8 WN35
+    -   one WH40
+    -   up to a total of 4 WH41 or WH43 in any mix
+    -   one WH45
+    -   up to a total of 8 WH51
+    -   up to a total of 4 WH55
+    -   one WH57
+    -   one WS68 or WS80
+
 The following deviations from the GW1000/GW1100 API documentation v1.6.0 are
 used in this driver:
 
