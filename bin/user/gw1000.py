@@ -6204,6 +6204,7 @@ class DirectGw1000(object):
 def main():
     import optparse
 
+    # TODO. Should we display the default and actual field map
     usage = """Usage: python -m user.gw1000 --help
        python -m user.gw1000 --version
        python -m user.gw1000 --test-driver|--test-service
