@@ -2385,7 +2385,7 @@ class Gw1000Collector(Collector):
         b'\x00': {'name': 'wh65', 'long_name': 'WH65', 'batt_fn': 'batt_binary'},
         b'\x01': {'name': 'wh68', 'long_name': 'WH68', 'batt_fn': 'batt_volt'},
         b'\x02': {'name': 'ws80', 'long_name': 'WS80', 'batt_fn': 'batt_volt'},
-        b'\x03': {'name': 'wh40', 'long_name': 'WH40', 'batt_fn': 'batt_binary'},
+        b'\x03': {'name': 'wh40', 'long_name': 'WH40', 'batt_fn': 'batt_volt_tenth'},
         b'\x04': {'name': 'wh25', 'long_name': 'WH25', 'batt_fn': 'batt_binary'},
         b'\x05': {'name': 'wh26', 'long_name': 'WH26', 'batt_fn': 'batt_binary'},
         b'\x06': {'name': 'wh31_ch1', 'long_name': 'WH31 ch1', 'batt_fn': 'batt_binary'},
@@ -2404,6 +2404,7 @@ class Gw1000Collector(Collector):
         b'\x13': {'name': 'wh51_ch6', 'long_name': 'WH51 ch6', 'batt_fn': 'batt_volt_tenth'},
         b'\x14': {'name': 'wh51_ch7', 'long_name': 'WH51 ch7', 'batt_fn': 'batt_volt_tenth'},
         b'\x15': {'name': 'wh51_ch8', 'long_name': 'WH51 ch8', 'batt_fn': 'batt_volt_tenth'},
+        # TODO. Perhaps change WH41batt, WH45 to 0-6 and WH55 0-5 rather than batt_int
         b'\x16': {'name': 'wh41_ch1', 'long_name': 'WH41 ch1', 'batt_fn': 'batt_int'},
         b'\x17': {'name': 'wh41_ch2', 'long_name': 'WH41 ch2', 'batt_fn': 'batt_int'},
         b'\x18': {'name': 'wh41_ch3', 'long_name': 'WH41 ch3', 'batt_fn': 'batt_int'},
@@ -2429,7 +2430,8 @@ class Gw1000Collector(Collector):
         b'\x2c': {'name': 'wn35_ch5', 'long_name': 'WN35 ch5', 'batt_fn': 'batt_volt'},
         b'\x2d': {'name': 'wn35_ch6', 'long_name': 'WN35 ch6', 'batt_fn': 'batt_volt'},
         b'\x2e': {'name': 'wn35_ch7', 'long_name': 'WN35 ch7', 'batt_fn': 'batt_volt'},
-        b'\x2f': {'name': 'wn35_ch8', 'long_name': 'WN35 ch8', 'batt_fn': 'batt_volt'}
+        b'\x2f': {'name': 'wn35_ch8', 'long_name': 'WN35 ch8', 'batt_fn': 'batt_volt'},
+        b'\x30': {'name': 'wh90', 'long_name': 'WH90', 'batt_fn': 'batt_volt'}
     }
     # list of dicts of weather services that I know about
     services = [{'name': 'ecowitt_net',
@@ -2682,6 +2684,36 @@ class Gw1000Collector(Collector):
         # bytes 4 and 5 hold the PM10 offset
         offset_dict['pm10'] = struct.unpack(">h", data[4:6])[0]/10.0
         return offset_dict
+
+    @property
+    def rain_reset_time(self):
+        """Obtain the GW1000/GW1100 rain reset time."""
+
+        # obtain the rain reset time data via the API
+        response = self.station.get_rain_reset_time()
+        # determine the size of the rain rest time data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        # and decode/store the offset data
+        # byte 0 holds the hour (0-23)
+        try:
+            data_dict['hour'] = struct.unpack("b", data[0])[0]
+        except TypeError:
+            data_dict['hour'] = struct.unpack("b", six.int2byte(data[0]))[0]
+        # byte 1 holds the day f the week (0=Sunday, 1=Monday etc)
+        try:
+            data_dict['dow'] = struct.unpack("b", data[1])[0]
+        except TypeError:
+            data_dict['dow'] = struct.unpack("b", six.int2byte(data[1]))[0]
+        # byte 2 holds the month number (1=January, 2=February etc)
+        try:
+            data_dict['month'] = struct.unpack("b", data[2])[0]
+        except TypeError:
+            data_dict['month'] = struct.unpack("b", six.int2byte(data[2]))[0]
+        return data_dict
 
     @property
     def calibration(self):
@@ -3127,7 +3159,9 @@ class Gw1000Collector(Collector):
             'CMD_READ_USR_PATH': b'\x51',
             'CMD_WRITE_USR_PATH': b'\x52',
             'CMD_GET_CO2_OFFSET': b'\x53',
-            'CMD_SET_CO2_OFFSET': b'\x54'
+            'CMD_SET_CO2_OFFSET': b'\x54',
+            'CMD_READ_RSTRAIN_TIME': b'\x55',
+            'CMD_WRITE_RSTRAIN_TIME': b'\x56'
         }
         # header used in each API command and response packet
         header = b'\xff\xff'
@@ -3717,11 +3751,23 @@ class Gw1000Collector(Collector):
             offset data to the API with retries. If the GW1000/GW1100 cannot be
             contacted a GW1000IOError will have been raised by
             send_cmd_with_retries() which will be passed through by
-            get_offset_calibration(). Any code calling get_offset_calibration()
+            get_co2_offset(). Any code calling get_co2_offset()
             should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_GET_CO2_OFFSET')
+
+        def get_rain_reset_time(self):
+            """Get rain reset time.
+
+            Sends the command to obtain the rain reset time to the API with
+            retries. If the GW1000/GW1100 cannot be contacted a GW1000IOError
+            will have been raised by send_cmd_with_retries() which will be
+            passed through by get_rain_reset_time(). Any code calling
+            get_rain_reset_time() should be prepared to handle this exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_RSTRAIN_TIME')
 
         def send_cmd_with_retries(self, cmd, payload=b''):
             """Send a command to the GW1000/GW1100 API with retries and return
@@ -5249,6 +5295,8 @@ class DirectGw1000(object):
             self.get_pm25_offset()
         elif self.opts.get_co2_offset:
             self.get_co2_offset()
+        elif self.opts.get_rain_reset_time:
+            self.get_rain_reset_time()
         elif self.opts.get_calibration:
             self.get_calibration()
         elif self.opts.get_soil_calibration:
@@ -5511,6 +5559,48 @@ class DirectGw1000(object):
                 print("CO2 offset: %5s" % ("%2.1f" % co2_offset_data['co2']))
                 print("PM10 offset: %5s" % ("%2.1f" % co2_offset_data['pm10']))
                 print("PM2.5 offset: %5s" % ("%2.1f" % co2_offset_data['pm25']))
+            else:
+                print()
+                print("%s did not respond." % collector.station.model)
+
+    def get_rain_reset_time(self):
+        """Display rain reset time from a GW1000/GW1100.
+
+        Obtain and display the rain reset time from the selected GW1000/GW1100.
+        GW1000/GW1100 IP address and port are derived (in order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
+
+        # wrap in a try..except in case there is an error
+        try:
+            # get a Gw1000Collector object
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
+            # identify the GW1000/GW1100 being used
+            print()
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
+            # get the rain reset time data from the collector object's
+            # rain_reset_time property
+            rain_reset_time_data = collector.rain_reset_time
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to device: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. %s did not respond." % collector.station.model)
+        else:
+            # did we get any data
+            if rain_reset_time_data is not None:
+                # now format and display the data
+                print()
+                print("Rain Reset Time")
+                print("Hour: %5s" % ("%d" % rain_reset_time_data['hour']))
+                print("Day of the Week: %5s" % ("%d" % rain_reset_time_data['dow']))
+                print("Month: %5s" % ("%d" % rain_reset_time_data['month']))
             else:
                 print()
                 print("%s did not respond." % collector.station.model)
@@ -6277,6 +6367,9 @@ def main():
     parser.add_option('--get-co2-offset', dest='get_co2_offset',
                       action='store_true',
                       help='display GW1000/GW1100 CO2 (WH45) offset data')
+#    parser.add_option('--get-rain-reset-time', dest='get_rain_reset_time',
+#                      action='store_true',
+#                      help='display GW1000/GW1100 rain reset time data')
     parser.add_option('--get-calibration', dest='get_calibration',
                       action='store_true',
                       help='display GW1000/GW1100 calibration data')
