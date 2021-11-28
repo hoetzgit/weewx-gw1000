@@ -5821,7 +5821,7 @@ class DirectGw1000(object):
                         # data as well
                         battery_desc = sensors.battery_desc(address, sensor_data.get('battery'))
                         battery_str = "%s (%s)" % (sensor_data.get('battery'), battery_desc)
-                        state = "sensor ID: %s  signal: %s  battery: %s" % (sensor_data.get('id').strip('0'),
+                        state = "sensor ID: %s  signal: %s  battery: %s" % (sensor_data.get('id').lstrip('0'),
                                                                             sensor_data.get('signal'),
                                                                             battery_str)
                         # print the formatted data
