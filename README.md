@@ -1,3 +1,6 @@
+# Backup repository - weewx-gw1000 - Gary Roderick
+**Note:** The original repository no longer exists. Here is the latest version available to me. **2 August 2024 v0.6.3**
+
 # Ecowitt Gateway (formerly GW1000) Driver
 
 **Note:** The instructions and links in this readme have been produced for WeeWX v5. In general, the same concepts apply to earlier WeeWX versions; however, the detailed steps and commands required will be different. If you wish to persist with an earlier WeeWX version you may wish to refer to the [legacy instructions](https://github.com/gjr80/weewx-gw1000/wiki/Legacy-instructions). Alternatively, you may find it easier to just upgrade to WeeWX v5 - after all it is free.
