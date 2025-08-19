@@ -1,4 +1,5 @@
 # Backup repository - weewx-gw1000 - Gary Roderick
+# https://github.com/gjr80/weewx-gw1000
 **Note:** The original repository no longer exists. Here is the latest version available to me. **2 August 2024 v0.6.3**
 
 # Ecowitt Gateway (formerly GW1000) Driver
